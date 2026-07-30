@@ -1,16 +1,16 @@
 {
-  "name": "datocms-plugin-<INSERT-YOUR-PACKAGE-NAME-HERE>",
-  "description": "<INSERT-YOUR-PLUGIN-DESCRIPTION-HERE>",
-  "homepage": "https://github.com/<USER>/<REPO>",
+  "name": "datocms-plugin-filtered-dynamic-link",
+  "description": "A custom link field that filters available links based on a specified record field.",
+  "homepage": "https://github.com/claygiffin/datocms-plugins/filtered-dynamic-link",
   "private": false,
   "version": "0.1.0",
-  "author": "<YOUR-NAME> <<YOUR-EMAIL>>",
+  "author": "Clay Giffin <clay@claygiffin.com>",
   "type": "module",
   "keywords": [
     "datocms-plugin"
   ],
   "datoCmsPlugin": {
-    "title": "School Links",
+    "title": "Filtered Dynamic Link",
     "entryPoint": "dist/index.html",
     "permissions": []
   },

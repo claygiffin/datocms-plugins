@@ -18,7 +18,7 @@ connect({
         id: 'filteredDynamicLink',
         name: 'Filtered Dynamic Link',
         type: 'editor',
-        fieldTypes: ['json', 'links', 'link'], // Works on JSON or native Link(s)
+        fieldTypes: ['links', 'link'], // Works on native Link(s)
         configurable: true, // Enables per-field configuration screen
       },
     ]

@@ -1,10 +1,11 @@
 import { buildClient } from '@datocms/cma-client-browser'
 import { DragDropContext, Draggable, DropResult, Droppable } from '@hello-pangea/dnd'
 import { RenderFieldExtensionCtx } from 'datocms-plugin-sdk'
-import { Canvas, SelectInput } from 'datocms-react-ui'
+import { Canvas, SelectInput, Spinner } from 'datocms-react-ui'
 import 'datocms-react-ui/styles.css'
 import get from 'lodash/get'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import styles from './FilteredDynamicLink.module.css'
 
 type Props = {
   ctx: RenderFieldExtensionCtx
@@ -16,13 +17,14 @@ type Option = {
   modelName?: string
 }
 
-export default function CustomFilteredLink({ ctx }: Props) {
+export default function FilteredDynamicLink({ ctx }: Props) {
   const filterByField = (ctx.parameters.filterByField as string) || 'school'
 
   const filterValue = get(ctx.formValues, filterByField) as string
   const [availableOptions, setAvailableOptions] = useState<Option[]>([])
   const [selectedCards, setSelectedCards] = useState<Option[]>([])
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
 
   // Strictly check if field is 'links' (multi) vs 'link' (single)
   const isMulti = ctx.field.attributes.field_type === 'links'
@@ -56,7 +58,10 @@ export default function CustomFilteredLink({ ctx }: Props) {
 
   // Fetch filtered records for the field
   useEffect(() => {
-    if (allowedItemTypeIds.length === 0) return
+    if (allowedItemTypeIds.length === 0) {
+      setInitialLoading(false)
+      return
+    }
 
     async function loadData() {
       setLoading(true)
@@ -157,6 +162,7 @@ export default function CustomFilteredLink({ ctx }: Props) {
         console.error('Failed to load filtered records:', err)
       } finally {
         setLoading(false)
+        setInitialLoading(false)
       }
     }
 
@@ -219,16 +225,26 @@ export default function CustomFilteredLink({ ctx }: Props) {
   const singleSelectedValue =
     availableOptions.find((opt) => opt.value === currentIds[0]) ||
     selectedCards.find((opt) => opt.value === currentIds[0]) ||
-    null
+    (currentIds[0] ? { label: `ID: ${currentIds[0]}`, value: currentIds[0] } : null)
 
   return (
     <Canvas ctx={ctx}>
       {allowedItemTypeIds.length === 0 ?
-        <div style={{ color: 'var(--color--danger--ink)' }}>
+        <div className={styles.dangerMessage}>
           Please configure the Target Model in the field settings.
         </div>
+      : initialLoading && currentIds.length > 0 ?
+        /* SKELETON PLACEHOLDER WHILE FETCHING */
+        <div className={styles.skeletonList}>
+          {currentIds.map((id) => (
+            <div key={id} className={styles.skeletonItem}>
+              <Spinner size={24} />
+              <span>Loading item ({id})...</span>
+            </div>
+          ))}
+        </div>
       : !filterValue && currentIds.length === 0 ?
-        <div style={{ color: 'var(--color--ink-muted)' }}>
+        <div className={styles.mutedMessage}>
           Please select a valid <strong>{filterByField}</strong> first.
         </div>
       : !isMulti ?
@@ -241,13 +257,7 @@ export default function CustomFilteredLink({ ctx }: Props) {
           placeholder="Select link..."
         />
       : /* MULTI LINK VIEW: Search + Drag and Drop List */
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
+        <div className={styles.container}>
           <SelectInput
             isMulti={false}
             value={null}
@@ -268,11 +278,7 @@ export default function CustomFilteredLink({ ctx }: Props) {
                   <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
+                    className={styles.cardsList}
                   >
                     {selectedCards.map((item, index) => (
                       <Draggable key={item.value} draggableId={item.value} index={index}>
@@ -280,36 +286,15 @@ export default function CustomFilteredLink({ ctx }: Props) {
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            style={{
-                              ...provided.draggableProps.style,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '10px 14px',
-                              border: '1px solid var(--color--border)',
-                              borderRadius: '6px',
-                              boxShadow:
-                                snapshot.isDragging ?
-                                  '0 6px 16px rgba(0,0,0,0.12)'
-                                : 'none',
-                            }}
+                            className={`${styles.card} ${
+                              snapshot.isDragging ? styles.cardDragging : ''
+                            }`}
+                            style={provided.draggableProps.style}
                           >
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                              }}
-                            >
+                            <div className={styles.cardContent}>
                               <div
                                 {...provided.dragHandleProps}
-                                style={{
-                                  cursor: 'grab',
-                                  color: '#888',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  userSelect: 'none',
-                                }}
+                                className={styles.dragHandle}
                                 title="Drag to reorder"
                               >
                                 <svg
@@ -325,30 +310,10 @@ export default function CustomFilteredLink({ ctx }: Props) {
                                 </svg>
                               </div>
 
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    fontSize: '14px',
-                                    fontWeight: 500,
-                                    color: 'var(--color--ink)',
-                                  }}
-                                >
-                                  {item.label}
-                                </span>
+                              <div className={styles.labelGroup}>
+                                <span className={styles.title}>{item.label}</span>
                                 {item.modelName && (
-                                  <span
-                                    style={{
-                                      fontSize: '11px',
-                                      color: 'var(--color--ink-light)',
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.5px',
-                                    }}
-                                  >
+                                  <span className={styles.modelName}>
                                     {item.modelName}
                                   </span>
                                 )}
@@ -358,32 +323,9 @@ export default function CustomFilteredLink({ ctx }: Props) {
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(item.value)}
-                              style={{
-                                position: 'relative',
-                                borderRadius: '50%',
-                                appearance: 'none',
-                                border: 'none',
-                                padding: 0,
-                                display: 'flex',
-                                width: '2em',
-                                height: '2em',
-                                cursor: 'pointer',
-                              }}
+                              className={styles.removeButton}
                             >
-                              <span
-                                style={{
-                                  position: 'absolute',
-                                  display: 'block',
-                                  fontSize: '1.25em',
-                                  lineHeight: 1,
-                                  paddingBottom: '0.15em',
-                                  top: '50%',
-                                  left: '50%',
-                                  transform: 'translate(-50%, -50%)',
-                                }}
-                              >
-                                ×
-                              </span>
+                              <span className={styles.removeIcon}>×</span>
                             </button>
                           </div>
                         )}

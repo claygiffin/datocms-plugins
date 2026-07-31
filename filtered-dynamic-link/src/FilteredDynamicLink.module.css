@@ -1,0 +1,113 @@
+/* Container & Layout */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonList,
+.cardsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Skeleton Items */
+.skeletonItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  color: #666666;
+  font-size: 14px;
+}
+
+/* Draggable Card */
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  transition: box-shadow 0.2s ease;
+}
+
+.cardDragging {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.cardContent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dragHandle {
+  cursor: grab;
+  color: #888888;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.labelGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333333;
+}
+
+.modelName {
+  font-size: 11px;
+  color: #777777;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Actions */
+.removeButton {
+  position: relative;
+  border-radius: 50%;
+  appearance: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  width: 2em;
+  height: 2em;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.03);
+  transition: background-color 0.15s ease;
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+}
+
+.removeIcon {
+  position: absolute;
+  display: block;
+  font-size: 1.25em;
+  line-height: 1;
+  padding-bottom: 0.15em;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #888888;
+}
+
+/* Message States */
+.dangerMessage {
+  color: #d9534f;
+}
+
+.mutedMessage {
+  color: #888888;
+}

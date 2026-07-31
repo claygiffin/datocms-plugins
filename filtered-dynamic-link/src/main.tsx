@@ -7,7 +7,7 @@ import {
 import 'datocms-react-ui/styles.css'
 
 import ConfigScreen from './ConfigScreen'
-import CustomFilteredLink from './CustomFilteredLink'
+import FilteredDynamicLink from './FilteredDynamicLink'
 import { render } from './utils/render'
 
 connect({
@@ -27,7 +27,7 @@ connect({
   // 2. Render the per-field settings UI in DatoCMS
   renderManualFieldExtensionConfigScreen(
     fieldExtensionId,
-    ctx: RenderManualFieldExtensionConfigScreenCtx
+    ctx: RenderManualFieldExtensionConfigScreenCtx,
   ) {
     if (fieldExtensionId === 'filteredDynamicLink') {
       return render(<ConfigScreen ctx={ctx} />)
@@ -37,7 +37,7 @@ connect({
   // 3. Render the actual field editor in the record editing view
   renderFieldExtension(fieldExtensionId, ctx: RenderFieldExtensionCtx) {
     if (fieldExtensionId === 'filteredDynamicLink') {
-      return render(<CustomFilteredLink ctx={ctx} />)
+      return render(<FilteredDynamicLink ctx={ctx} />)
     }
   },
 })

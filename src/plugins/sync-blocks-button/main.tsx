@@ -11,7 +11,7 @@ connect({
         id: 'syncBlocksButton',
         name: 'Sync Blocks Button',
         type: 'editor',
-        fieldTypes: ['boolean'],
+        fieldTypes: ['json'],
         configurable: true,
       },
     ]

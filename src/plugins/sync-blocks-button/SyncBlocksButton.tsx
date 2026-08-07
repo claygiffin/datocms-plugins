@@ -360,12 +360,12 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
     return 'Sync Blocks with Template'
   }
 
-  const currentBoolean = get(ctx.formValues, ctx.fieldPath)
-  useEffect(() => {
-    if (currentBoolean !== isSynced) {
-      ctx.setFieldValue(ctx.fieldPath, isSynced)
-    }
-  }, [currentBoolean, isSynced, ctx.setFieldValue, ctx.fieldPath])
+  // const currentBoolean = get(ctx.formValues, ctx.fieldPath)
+  // useEffect(() => {
+  //   if (currentBoolean !== isSynced) {
+  //     ctx.setFieldValue(ctx.fieldPath, isSynced)
+  //   }
+  // }, [currentBoolean, isSynced, ctx.setFieldValue, ctx.fieldPath])
 
   return (
     <Canvas ctx={ctx}>

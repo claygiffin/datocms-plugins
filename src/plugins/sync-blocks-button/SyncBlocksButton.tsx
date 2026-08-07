@@ -360,10 +360,10 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
   }
 
   const renderLabel = () => {
-    if (loading) return 'Loading Block Data...'
-    if (syncing) return 'Syncing Blocks...'
-    if (isSynced) return 'Blocks In Sync with Template'
-    return 'Sync Blocks with Template'
+    if (loading) return 'Loading block data...'
+    if (syncing) return 'Syncing blocks...'
+    if (isSynced) return 'Blocks are in sync with template'
+    return 'Sync blocks with template'
   }
 
   // const currentBoolean = get(ctx.formValues, ctx.fieldPath)

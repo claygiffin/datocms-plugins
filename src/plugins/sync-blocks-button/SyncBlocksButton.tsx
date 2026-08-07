@@ -55,8 +55,10 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
   )
   // Helper to validate current record structure against template structure
   const validateStructure = useCallback(async () => {
+    setLoading(true)
     if (!ctx.currentUserAccessToken || !templateId) {
       setIsValid(null)
+      setLoading(false)
       return
     }
 
@@ -104,6 +106,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
       if (!rawTemplateValue) {
         setIsValid(false)
+        setLoading(false)
         return
       }
 
@@ -124,6 +127,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
       if (currentArray.length !== templateBlocks.length) {
         setIsValid(false)
+        setLoading(false)
         return
       }
 
@@ -156,9 +160,11 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
       }
 
       setIsValid(matches)
+      setLoading(false)
     } catch (err) {
       console.error('Error validating template structure:', err)
       setIsValid(false)
+      setLoading(false)
     }
   }, [
     ctx.currentUserAccessToken,

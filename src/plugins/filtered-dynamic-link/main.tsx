@@ -1,18 +1,17 @@
 import {
-  ManualFieldExtensionsCtx,
   RenderFieldExtensionCtx,
   RenderManualFieldExtensionConfigScreenCtx,
   connect,
 } from 'datocms-plugin-sdk'
 import 'datocms-react-ui/styles.css'
 
-import ConfigScreen from './ConfigScreen'
-import FilteredDynamicLink from './FilteredDynamicLink'
-import { render } from './utils/render'
+import { render } from '../../utils/render'
+import { ConfigScreen } from './ConfigScreen'
+import { FilteredDynamicLink } from './FilteredDynamicLink'
 
 connect({
   // 1. Declare the extension so it appears in Field Settings -> Presentation
-  manualFieldExtensions(_: ManualFieldExtensionsCtx) {
+  manualFieldExtensions() {
     return [
       {
         id: 'filteredDynamicLink',

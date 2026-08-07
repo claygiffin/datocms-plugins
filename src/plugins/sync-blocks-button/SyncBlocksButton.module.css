@@ -1,0 +1,12 @@
+.button {
+  display: flex;
+  justify-content: center;
+  > span {
+    display: flex;
+    place-items: center;
+    gap: 0.25em;
+  }
+}
+.icon {
+  display: flex;
+}

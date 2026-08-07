@@ -1,8 +1,8 @@
 {
-  "name": "datocms-plugin-filtered-dynamic-link",
-  "description": "A custom link field that filters available links based on a specified record field.",
-  "homepage": "https://github.com/claygiffin/datocms-plugins/filtered-dynamic-link",
-  "private": false,
+  "name": "datocms-plugins",
+  "description": "Custom plugins made by Clay Giffin.",
+  "homepage": "https://github.com/claygiffin/datocms-plugins",
+  "private": true,
   "version": "0.1.0",
   "author": "Clay Giffin <clay@claygiffin.com>",
   "type": "module",
@@ -31,10 +31,13 @@
     "datocms-react-ui": "*",
     "lodash": "^4.18.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.7.0",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.24",
+    "@types/node": "^26.1.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

@@ -1,0 +1,1 @@
+{"root":["./src/vite-env.d.ts","./src/plugins/filtered-dynamic-link/configscreen.tsx","./src/plugins/filtered-dynamic-link/filtereddynamiclink.tsx","./src/plugins/filtered-dynamic-link/main.tsx","./src/utils/render.tsx"],"version":"5.9.3"}

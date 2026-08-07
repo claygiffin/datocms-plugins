@@ -6,9 +6,8 @@ type Props = {
   ctx: RenderManualFieldExtensionConfigScreenCtx
 }
 
-export default function ConfigScreen({ ctx }: Props) {
-  const filterByField =
-    (ctx.parameters.filterByField as string) || 'school'
+export const ConfigScreen = ({ ctx }: Props) => {
+  const filterByField = (ctx.parameters.filterByField as string) || 'school'
 
   const updateParam = (key: string, value: string) => {
     ctx.setParameters({
@@ -27,7 +26,7 @@ export default function ConfigScreen({ ctx }: Props) {
           hint="Field on the current record used to filter the target model."
           value={filterByField}
           placeholder="e.g. school"
-          onChange={newValue => updateParam('filterByField', newValue)}
+          onChange={(newValue) => updateParam('filterByField', newValue)}
         />
       </FieldGroup>
     </Canvas>

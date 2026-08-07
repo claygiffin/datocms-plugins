@@ -17,7 +17,7 @@ type Option = {
   modelName?: string
 }
 
-export default function FilteredDynamicLink({ ctx }: Props) {
+export const FilteredDynamicLink = ({ ctx }: Props) => {
   const filterByField = (ctx.parameters.filterByField as string) || 'school'
 
   const filterValue = get(ctx.formValues, filterByField) as string

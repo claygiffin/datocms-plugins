@@ -13,6 +13,7 @@ interface Props {
 
 export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
   const [loading, setLoading] = useState<boolean>(false)
+  const [syncing, setSyncing] = useState<boolean>(false)
   const [isValid, setIsValid] = useState<boolean | null>(null)
 
   // Read field-level parameters configured via FieldConfigScreen
@@ -58,7 +59,6 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
     setLoading(true)
     if (!ctx.currentUserAccessToken || !templateId) {
       setIsValid(null)
-      setLoading(false)
       return
     }
 
@@ -106,7 +106,6 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
       if (!rawTemplateValue) {
         setIsValid(false)
-        setLoading(false)
         return
       }
 
@@ -127,7 +126,6 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
       if (currentArray.length !== templateBlocks.length) {
         setIsValid(false)
-        setLoading(false)
         return
       }
 
@@ -164,6 +162,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
     } catch (err) {
       console.error('Error validating template structure:', err)
       setIsValid(false)
+    } finally {
       setLoading(false)
     }
   }, [
@@ -182,7 +181,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
   const handleSync = async () => {
     try {
-      setLoading(true)
+      setSyncing(true)
 
       if (!ctx.currentUserAccessToken) {
         ctx.alert('Missing user access token.')
@@ -346,7 +345,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
       console.error('Error syncing blocks:', err)
       ctx.alert('Failed to sync blocks with template.')
     } finally {
-      setLoading(false)
+      setSyncing(false)
     }
   }
 
@@ -355,13 +354,14 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
   const isDisabled = loading || isSynced
 
   const renderIcon = () => {
-    if (loading) return <Spinner size={24} />
+    if (loading || syncing) return <Spinner size={24} />
     if (isSynced) return <LuCheck size={20} />
     return <LuRefreshCw size={20} />
   }
 
   const renderLabel = () => {
-    if (loading) return 'Syncing Blocks...'
+    if (loading) return 'Loading Block Data...'
+    if (syncing) return 'Syncing Blocks...'
     if (isSynced) return 'Blocks In Sync with Template'
     return 'Sync Blocks with Template'
   }

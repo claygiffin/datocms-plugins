@@ -1,13 +1,39 @@
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { defineConfig, PluginOption } from 'vite'
+import fs from 'fs'
 
-// 1. Add all your plugin directory names here
 const PLUGINS = ['filtered-dynamic-link', 'localized-boolean', 'sync-blocks-button']
 
 /**
- * Creates Vite dev server middleware to cleanly map requests to plugin HTML files
+ * Moves generated index.html files from dist/src/plugins/[name]/index.html
+ * to dist/[name]/index.html after the build finishes.
  */
+function relocateHtmlOutputs(plugins: string[]): PluginOption {
+  return {
+    name: 'relocate-html-outputs',
+    closeBundle() {
+      for (const plugin of plugins) {
+        const srcPath = resolve(__dirname, `dist/src/plugins/${plugin}/index.html`)
+        const destDir = resolve(__dirname, `dist/${plugin}`)
+        const destPath = resolve(destDir, 'index.html')
+
+        if (fs.existsSync(srcPath)) {
+          if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true })
+          }
+          fs.renameSync(srcPath, destPath)
+        }
+      }
+      // Clean up empty src/ folder in dist
+      const distSrc = resolve(__dirname, 'dist/src')
+      if (fs.existsSync(distSrc)) {
+        fs.rmSync(distSrc, { recursive: true, force: true })
+      }
+    },
+  }
+}
+
 function datoPluginsDevServer(plugins: string[]): PluginOption {
   return {
     name: 'dato-plugins-dev-server',
@@ -16,7 +42,7 @@ function datoPluginsDevServer(plugins: string[]): PluginOption {
         if (!req.url) return next()
 
         for (const plugin of plugins) {
-          const basePath = `/plugins/${plugin}`
+          const basePath = `/${plugin}`
 
           // 1. Map HTML page request
           if (req.url === basePath || req.url === `${basePath}/`) {
@@ -36,9 +62,6 @@ function datoPluginsDevServer(plugins: string[]): PluginOption {
   }
 }
 
-/**
- * Dynamically generates Rollup input object for production multi-page build
- */
 function createBuildInputs(plugins: string[]) {
   return plugins.reduce<Record<string, string>>((inputs, plugin) => {
     inputs[plugin] = resolve(__dirname, `src/plugins/${plugin}/index.html`)
@@ -46,9 +69,8 @@ function createBuildInputs(plugins: string[]) {
   }, {})
 }
 
-// 2. Export configuration
 export default defineConfig({
-  plugins: [react(), datoPluginsDevServer(PLUGINS)],
+  plugins: [react(), datoPluginsDevServer(PLUGINS), relocateHtmlOutputs(PLUGINS)],
   build: {
     rollupOptions: {
       input: createBuildInputs(PLUGINS),

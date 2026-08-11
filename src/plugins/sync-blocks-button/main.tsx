@@ -11,7 +11,7 @@ connect({
         id: 'syncBlocksButton',
         name: 'Sync Blocks Button',
         type: 'editor',
-        fieldTypes: ['json'],
+        fieldTypes: ['string'],
         configurable: true,
       },
     ]
@@ -28,8 +28,4 @@ connect({
       render(<SyncBlocksButton ctx={ctx as RenderFieldExtensionCtx} />)
     }
   },
-  // onBeforeItemUpsert(item, ctx) {
-  //   console.log(item, ctx)
-  //   return true
-  // },
 })

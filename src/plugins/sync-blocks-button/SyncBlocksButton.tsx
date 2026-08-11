@@ -76,36 +76,10 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
     return JSON.stringify(blockSignatures)
   }, [ctx.formValues, targetModularApiKeys, parentSegments])
 
-  // Imperatively updates the JSON stored in this extension's field with the `isSynced` flag
-  const updateSyncedFieldValue = useCallback(
-    async (nextIsSynced: boolean | null) => {
-      try {
-        const rawValue = (get(ctx.formValues, ctx.fieldPath) as string) || '{}'
-        let currentObj: Record<string, any> = {}
-        try {
-          currentObj = JSON.parse(rawValue)
-        } catch {
-          currentObj = {}
-        }
-
-        if (currentObj.isSynced !== nextIsSynced) {
-          const nextJson = JSON.stringify({ ...currentObj, isSynced: nextIsSynced })
-          await ctx.setFieldValue(ctx.fieldPath, nextJson)
-        }
-      } catch (err) {
-        console.error('Failed to update synced status in field value:', err)
-      }
-    },
-    [ctx],
-  )
-
   // Helper to validate current record structure against template structure for all target keys
   const validateStructure = useCallback(async () => {
     setLoading(true)
     if (!ctx.currentUserAccessToken || !templateId || targetModularApiKeys.length === 0) {
-      setIsValid(null)
-      await updateSyncedFieldValue(null)
-      setLoading(false)
       return
     }
 
@@ -127,8 +101,6 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
       const templateRecord = await client.items.find(templateId)
       if (!templateRecord) {
         setIsValid(false)
-        await updateSyncedFieldValue(false)
-        setLoading(false)
         return
       }
 
@@ -162,8 +134,6 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
         if (!rawTemplateValue) {
           setIsValid(false)
-          await updateSyncedFieldValue(false)
-          setLoading(false)
           return
         }
 
@@ -192,8 +162,6 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
         if (currentArray.length !== templateBlocks.length) {
           setIsValid(false)
-          await updateSyncedFieldValue(false)
-          setLoading(false)
           return
         }
 
@@ -220,30 +188,25 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
             currentApiKey !== expectedTemplateKey
           ) {
             setIsValid(false)
-            await updateSyncedFieldValue(false)
-            setLoading(false)
             return
           }
         }
       }
       setIsValid(true)
-      await updateSyncedFieldValue(true)
     } catch (err) {
       console.error('Error validating template structure:', err)
       setIsValid(false)
-      await updateSyncedFieldValue(false)
     } finally {
       setLoading(false)
     }
   }, [
     ctx.currentUserAccessToken,
+    ctx.formValues,
     templateId,
     parentBlockKey,
     blockIndexInArray,
     targetModularApiKeys,
     parentSegments,
-    updateSyncedFieldValue,
-    // Note: ctx.formValues is intentionally omitted to avoid firing on every keystroke
   ])
 
   // Run validation on mount and whenever templateId or block structure changes
@@ -421,9 +384,10 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
       }
 
       ctx.notice('Modular blocks successfully synchronized with template!')
-      await validateStructure()
+      setIsValid(true)
     } catch (err) {
       console.error('Error syncing blocks:', err)
+      setIsValid(false)
       ctx.alert('Failed to sync blocks with template.')
     } finally {
       setSyncing(false)
@@ -431,7 +395,9 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
   }
 
   // Derive button UI properties based on state
-  const isSynced = isValid === true
+  const currentValue = get(ctx.formValues, ctx.fieldPath) === 'true'
+
+  const isSynced = Boolean(isValid === null ? currentValue : isValid)
   const isDisabled = loading || syncing || isSynced
 
   const renderIcon = () => {
@@ -446,6 +412,12 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
     if (isSynced) return 'Blocks are in sync with template'
     return 'Sync blocks with template'
   }
+
+  useEffect(() => {
+    if (currentValue !== isSynced) {
+      ctx.setFieldValue(ctx.fieldPath, isSynced.toString())
+    }
+  }, [isSynced, currentValue, ctx.setFieldValue])
 
   return (
     <Canvas ctx={ctx}>

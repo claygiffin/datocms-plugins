@@ -409,7 +409,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
   const renderLabel = () => {
     if (loading) return 'Loading block data...'
     if (syncing) return 'Syncing blocks...'
-    if (isSynced) return 'Blocks are in sync with template'
+    if (isSynced) return 'Blocks are in-sync with template'
     return 'Sync blocks with template'
   }
 

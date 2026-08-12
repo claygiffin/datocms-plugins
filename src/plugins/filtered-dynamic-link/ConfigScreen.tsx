@@ -130,7 +130,7 @@ export const ConfigScreen = ({ ctx }: Props) => {
                 id={`ignoreValue_${index}`}
                 label="Ignore value"
                 value={formatValueForInput(pair.ignoreValue)}
-                placeholder="All / true / null"
+                placeholder="string / boolean / null"
                 onChange={(val) => handleFieldChange(index, 'ignoreValue', val)}
                 textInputProps={{
                   style: {

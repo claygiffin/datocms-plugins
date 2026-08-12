@@ -111,3 +111,28 @@
 .mutedMessage {
   color: #888888;
 }
+/* Card invalid state */
+.cardInvalid {
+  border: 1px solid #e53935 !important;
+  background-color: #fdf2f2 !important;
+}
+
+/* Single-link container styling for error outline */
+.singleSelectError :global(.datocms-select__control) {
+  border-color: #e53935 !important;
+  box-shadow: 0 0 0 1px #e53935 !important;
+}
+
+/* Muted or danger alert box */
+.warningMessage {
+  background-color: #fff8e1;
+  border: 1px solid #ffe082;
+  color: #8c6b00;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

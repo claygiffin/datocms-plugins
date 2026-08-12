@@ -17,24 +17,99 @@ type Option = {
   modelName?: string
 }
 
-export const FilteredDynamicLink = ({ ctx }: Props) => {
-  const filterByField = (ctx.parameters.filterByField as string) || 'school'
+export type FieldFilterPair = {
+  currentRecordField: string
+  targetRecordField: string
+  ignoreValue?: string | boolean | null
+}
 
-  const filterValue = get(ctx.formValues, filterByField) as string
+const getBlockPath = (fieldPath: string) => {
+  const parts = fieldPath.split('.')
+  parts.pop()
+  return parts.join('.')
+}
+
+const shouldIgnoreValue = (
+  rawValue: any,
+  ignoreConfig?: string | boolean | null,
+): boolean => {
+  if (ignoreConfig === undefined) return false
+  if (ignoreConfig === null) return rawValue === null || rawValue === undefined
+  if (typeof ignoreConfig === 'boolean') return rawValue === ignoreConfig
+  if (rawValue !== null && rawValue !== undefined) {
+    return (
+      String(rawValue).trim().toLowerCase() === String(ignoreConfig).trim().toLowerCase()
+    )
+  }
+  return false
+}
+
+export const FilteredDynamicLink = ({ ctx }: Props) => {
+  const fieldPairs = useMemo<FieldFilterPair[]>(() => {
+    const raw = ctx.parameters.fieldPairs
+    if (Array.isArray(raw)) return raw
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw)
+      } catch (e) {}
+    }
+
+    const legacyCurrent =
+      (ctx.parameters.currentRecordField as string) ||
+      (ctx.parameters.filterByField as string) ||
+      'school'
+    const legacyTarget = (ctx.parameters.targetRecordField as string) || legacyCurrent
+
+    return [{ currentRecordField: legacyCurrent, targetRecordField: legacyTarget }]
+  }, [ctx.parameters])
+
+  const activeFilters = useMemo(() => {
+    const blockPath = getBlockPath(ctx.fieldPath)
+
+    return fieldPairs.map((pair) => {
+      let rawVal: any
+
+      if (pair.currentRecordField.startsWith('thisBlock.')) {
+        const fieldInBlock = pair.currentRecordField.replace('thisBlock.', '')
+        const absolutePath = blockPath ? `${blockPath}.${fieldInBlock}` : fieldInBlock
+        rawVal = get(ctx.formValues, absolutePath)
+      } else {
+        rawVal = get(ctx.formValues, pair.currentRecordField)
+      }
+
+      const extractedVal =
+        typeof rawVal === 'object' && rawVal !== null && 'id' in rawVal ?
+          rawVal.id
+        : rawVal
+
+      const isIgnored = shouldIgnoreValue(extractedVal, pair.ignoreValue)
+      const hasValue =
+        extractedVal !== undefined && extractedVal !== null && extractedVal !== ''
+
+      return {
+        currentField: pair.currentRecordField,
+        targetField: pair.targetRecordField,
+        value: extractedVal,
+        isIgnored,
+        hasValue,
+      }
+    })
+  }, [ctx.formValues, ctx.fieldPath, fieldPairs])
+
+  const isFilterReady = useMemo(() => {
+    return fieldPairs.length > 0 && activeFilters.every((f) => f.hasValue || f.isIgnored)
+  }, [fieldPairs, activeFilters])
+
   const [availableOptions, setAvailableOptions] = useState<Option[]>([])
   const [selectedCards, setSelectedCards] = useState<Option[]>([])
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
 
-  // Strictly check if field is 'links' (multi) vs 'link' (single)
   const isMulti = ctx.field.attributes.field_type === 'links'
 
-  // Safely extract primitive string IDs from formValues
   const currentIds = useMemo(() => {
     const rawValue = get(ctx.formValues, ctx.fieldPath)
-
     if (!rawValue) return []
-
     const rawArray = Array.isArray(rawValue) ? rawValue : [rawValue]
 
     return rawArray
@@ -46,6 +121,18 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       .filter(Boolean) as string[]
   }, [ctx.formValues, ctx.fieldPath])
 
+  // Track valid IDs from available matching options
+  const availableOptionIds = useMemo(
+    () => new Set(availableOptions.map((o) => o.value)),
+    [availableOptions],
+  )
+
+  // Identify which currently selected IDs violate current filter rules
+  const invalidSelectedIds = useMemo(() => {
+    if (!isFilterReady) return new Set<string>()
+    return new Set(currentIds.filter((id) => !availableOptionIds.has(id)))
+  }, [currentIds, availableOptionIds, isFilterReady])
+
   const allowedItemTypeIds = useMemo(() => {
     const validators = ctx.field.attributes.validators as any
     if (validators?.items_item_type?.item_types) {
@@ -56,7 +143,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return []
   }, [ctx.field.attributes.validators])
 
-  // Fetch filtered records for the field
   useEffect(() => {
     if (allowedItemTypeIds.length === 0) {
       setInitialLoading(false)
@@ -86,21 +172,25 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           }
         }
 
-        // 1. Fetch FILTERED options for the dropdown
         let filteredRecords: any[] = []
-        if (filterValue) {
+        if (isFilterReady) {
+          const fieldsFilter: Record<string, { eq: any }> = {}
+
+          activeFilters.forEach((filter) => {
+            if (!filter.isIgnored && filter.hasValue) {
+              fieldsFilter[filter.targetField] = { eq: filter.value }
+            }
+          })
+
           filteredRecords = await client.items.list({
             filter: {
               type: allowedItemTypeIds.join(','),
-              fields: {
-                [filterByField]: { eq: filterValue },
-              },
+              fields: fieldsFilter,
             },
             nested: true,
           })
         }
 
-        // 2. Fetch missing records if they exist in currentIds (e.g. initial load)
         const fetchedIds = new Set(filteredRecords.map((r) => r.id))
         const missingIds = currentIds.filter((id) => !fetchedIds.has(id))
 
@@ -118,7 +208,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         const allRecords = [...filteredRecords, ...missingRecords]
         const recordsMap = new Map(allRecords.map((r) => [r.id, r]))
 
-        // Map options
         const dropdownOptions: Option[] = filteredRecords.map((record) => {
           const typeId = record.item_type.id
           const titleKey = titleFieldsMap.get(typeId) || 'name'
@@ -135,7 +224,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           }
         })
 
-        // Map selected cards in EXACT order of currentIds (used when isMulti = true)
         const orderedCards: Option[] = currentIds
           .map((id) => {
             const record = recordsMap.get(id)
@@ -168,14 +256,13 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
     loadData()
   }, [
-    filterValue,
+    isFilterReady,
+    JSON.stringify(activeFilters),
     currentIds.join(','),
     allowedItemTypeIds,
-    filterByField,
     ctx.currentUserAccessToken,
   ])
 
-  // --- SINGLE LINK HANDLERS ---
   const handleSingleChange = useCallback(
     (newValue: any) => {
       const selected = Array.isArray(newValue) ? newValue[0] : (newValue as Option | null)
@@ -185,7 +272,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     [ctx],
   )
 
-  // --- MULTI LINK HANDLERS ---
   const selectableOptions = useMemo(() => {
     const selectedSet = new Set(currentIds)
     return availableOptions.filter((opt) => !selectedSet.has(opt.value))
@@ -227,6 +313,16 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     selectedCards.find((opt) => opt.value === currentIds[0]) ||
     (currentIds[0] ? { label: `ID: ${currentIds[0]}`, value: currentIds[0] } : null)
 
+  const missingFieldsNames = fieldPairs
+    .filter((p) => {
+      const active = activeFilters.find((f) => f.currentField === p.currentRecordField)
+      return !active || (!active.hasValue && !active.isIgnored)
+    })
+    .map((p) => p.currentRecordField)
+
+  const isSingleInvalid =
+    !isMulti && currentIds[0] && invalidSelectedIds.has(currentIds[0])
+
   return (
     <Canvas ctx={ctx}>
       {allowedItemTypeIds.length === 0 ?
@@ -234,7 +330,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           Please configure the Target Model in the field settings.
         </div>
       : initialLoading && currentIds.length > 0 ?
-        /* SKELETON PLACEHOLDER WHILE FETCHING */
         <div className={styles.skeletonList}>
           {currentIds.map((id) => (
             <div key={id} className={styles.skeletonItem}>
@@ -243,21 +338,29 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             </div>
           ))}
         </div>
-      : !filterValue && currentIds.length === 0 ?
+      : !isFilterReady && currentIds.length === 0 ?
         <div className={styles.mutedMessage}>
-          Please select a valid <strong>{filterByField}</strong> first.
+          Please complete all required filter fields (
+          <strong>{missingFieldsNames.join(', ')}</strong>) first.
         </div>
       : !isMulti ?
-        /* SINGLE LINK VIEW: Classic Select Input */
-        <SelectInput
-          isMulti={false}
-          value={singleSelectedValue}
-          options={availableOptions}
-          onChange={handleSingleChange}
-          placeholder="Select link..."
-        />
-      : /* MULTI LINK VIEW: Search + Drag and Drop List */
-        <div className={styles.container}>
+        <div>
+          <div className={isSingleInvalid ? styles.singleSelectError : ''}>
+            <SelectInput
+              isMulti={false}
+              value={singleSelectedValue}
+              options={availableOptions}
+              onChange={handleSingleChange}
+              placeholder="Select link..."
+            />
+          </div>
+          {isSingleInvalid && (
+            <div className={styles.warningMessage}>
+              ⚠️ Selected item does not match the active filter parameters.
+            </div>
+          )}
+        </div>
+      : <div className={styles.container}>
           <SelectInput
             isMulti={false}
             value={null}
@@ -266,10 +369,17 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             placeholder={
               loading ? 'Loading filtered records...'
               : selectableOptions.length === 0 ?
-                'No more matching records found'
-              : `Search and add ${filterByField} record...`
+                'No matching records found'
+              : `Search and add record...`
             }
           />
+
+          {invalidSelectedIds.size > 0 && (
+            <div className={styles.warningMessage}>
+              ⚠️ {invalidSelectedIds.size} selected item(s) do not match the current
+              filter criteria.
+            </div>
+          )}
 
           {selectedCards.length > 0 && (
             <DragDropContext onDragEnd={handleDragEnd}>
@@ -280,57 +390,65 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                     ref={provided.innerRef}
                     className={styles.cardsList}
                   >
-                    {selectedCards.map((item, index) => (
-                      <Draggable key={item.value} draggableId={item.value} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={`${styles.card} ${
-                              snapshot.isDragging ? styles.cardDragging : ''
-                            }`}
-                            style={provided.draggableProps.style}
-                          >
-                            <div className={styles.cardContent}>
-                              <div
-                                {...provided.dragHandleProps}
-                                className={styles.dragHandle}
-                                title="Drag to reorder"
-                              >
-                                <svg
-                                  stroke="currentColor"
-                                  fill="currentColor"
-                                  strokeWidth="0"
-                                  viewBox="0 0 24 24"
-                                  width="18px"
-                                  height="18px"
-                                >
-                                  <path fill="none" d="M0 0h24v24H0z"></path>
-                                  <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"></path>
-                                </svg>
-                              </div>
+                    {selectedCards.map((item, index) => {
+                      const isInvalid = invalidSelectedIds.has(item.value)
 
-                              <div className={styles.labelGroup}>
-                                <span className={styles.title}>{item.label}</span>
-                                {item.modelName && (
-                                  <span className={styles.modelName}>
-                                    {item.modelName}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.value)}
-                              className={styles.removeButton}
+                      return (
+                        <Draggable
+                          key={item.value}
+                          draggableId={item.value}
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`${styles.card} ${
+                                snapshot.isDragging ? styles.cardDragging : ''
+                              } ${isInvalid ? styles.cardInvalid : ''}`}
+                              style={provided.draggableProps.style}
                             >
-                              <span className={styles.removeIcon}>×</span>
-                            </button>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
+                              <div className={styles.cardContent}>
+                                <div
+                                  {...provided.dragHandleProps}
+                                  className={styles.dragHandle}
+                                  title="Drag to reorder"
+                                >
+                                  <svg
+                                    stroke="currentColor"
+                                    fill="currentColor"
+                                    strokeWidth="0"
+                                    viewBox="0 0 24 24"
+                                    width="18px"
+                                    height="18px"
+                                  >
+                                    <path fill="none" d="M0 0h24v24H0z"></path>
+                                    <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"></path>
+                                  </svg>
+                                </div>
+
+                                <div className={styles.labelGroup}>
+                                  <span className={styles.title}>{item.label}</span>
+                                  {item.modelName && (
+                                    <span className={styles.modelName}>
+                                      {item.modelName}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(item.value)}
+                                className={styles.removeButton}
+                              >
+                                <span className={styles.removeIcon}>×</span>
+                              </button>
+                            </div>
+                          )}
+                        </Draggable>
+                      )
+                    })}
                     {provided.placeholder}
                   </div>
                 )}

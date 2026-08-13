@@ -6,6 +6,7 @@ import 'datocms-react-ui/styles.css'
 import get from 'lodash/get'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import styles from './FilteredDynamicLink.module.css'
+import { MdDragIndicator } from 'react-icons/md'
 
 type Props = {
   ctx: RenderFieldExtensionCtx
@@ -414,26 +415,16 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                                   className={styles.dragHandle}
                                   title="Drag to reorder"
                                 >
-                                  <svg
-                                    stroke="currentColor"
-                                    fill="currentColor"
-                                    strokeWidth="0"
-                                    viewBox="0 0 24 24"
-                                    width="18px"
-                                    height="18px"
-                                  >
-                                    <path fill="none" d="M0 0h24v24H0z"></path>
-                                    <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"></path>
-                                  </svg>
+                                  <MdDragIndicator />
                                 </div>
 
                                 <div className={styles.labelGroup}>
                                   <span className={styles.title}>{item.label}</span>
-                                  {item.modelName && (
+                                  {/* {item.modelName && (
                                     <span className={styles.modelName}>
                                       {item.modelName}
                                     </span>
-                                  )}
+                                  )} */}
                                 </div>
                               </div>
 

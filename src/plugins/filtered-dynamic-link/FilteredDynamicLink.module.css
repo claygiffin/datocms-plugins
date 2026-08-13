@@ -53,15 +53,16 @@
   display: flex;
   align-items: center;
   user-select: none;
+  font-size: 18px;
 }
 
 .labelGroup {
-  display: flex;
-  flex-direction: column;
+  /* display: flex;
+  flex-direction: column; */
 }
 
 .title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: #333333;
 }

@@ -324,6 +324,18 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   const isSingleInvalid =
     !isMulti && currentIds[0] && invalidSelectedIds.has(currentIds[0])
 
+  const placeholderText = (() => {
+    if (loading) {
+      return 'Loading filtered records...'
+    }
+    if (selectableOptions.length === 0) {
+      if (selectedCards.length > 0) {
+        return 'All matching records are selected'
+      }
+      return 'No matching records found'
+    }
+    return `Search and add record...`
+  })()
   return (
     <Canvas ctx={ctx}>
       {allowedItemTypeIds.length === 0 ?
@@ -367,12 +379,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             value={null}
             options={selectableOptions}
             onChange={handleAddItem}
-            placeholder={
-              loading ? 'Loading filtered records...'
-              : selectableOptions.length === 0 ?
-                'No matching records found'
-              : `Search and add record...`
-            }
+            placeholder={placeholderText}
           />
 
           {invalidSelectedIds.size > 0 && (

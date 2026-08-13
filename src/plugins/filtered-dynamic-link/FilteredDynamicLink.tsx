@@ -380,6 +380,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             options={selectableOptions}
             onChange={handleAddItem}
             placeholder={placeholderText}
+            isDisabled={selectableOptions.length === 0}
           />
 
           {invalidSelectedIds.size > 0 && (

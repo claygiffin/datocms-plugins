@@ -39,14 +39,7 @@ export const ConfigScreen = ({ ctx }: Props) => {
       if (Array.isArray(raw)) return raw
       if (typeof raw === 'string') return JSON.parse(raw)
     } catch (e) {}
-
-    return [
-      {
-        currentRecordField: 'thisBlock.faculty_type',
-        targetRecordField: 'faculty_type',
-        ignoreValue: 'All',
-      },
-    ]
+    return []
   }
 
   const [pairs, setPairs] = useState<FieldFilterPair[]>(getInitialPairs)
@@ -106,10 +99,11 @@ export const ConfigScreen = ({ ctx }: Props) => {
               <TextField
                 name={`currentRecordField_${index}`}
                 id={`currentRecordField_${index}`}
-                label={`Rule ${index + 1}: Current API Key`}
+                label={`Current API Key / Value`}
                 value={pair.currentRecordField}
-                placeholder="e.g. thisBlock.faculty_type"
+                placeholder="e.g. category, thisBlock.type, or VALUE(Faculty)"
                 onChange={(val) => handleFieldChange(index, 'currentRecordField', val)}
+                hint="Use field_api_key, thisBlock.field_api_key, or VALUE(static_value)"
               />
             </div>
 

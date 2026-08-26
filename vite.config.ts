@@ -3,7 +3,13 @@ import { resolve } from 'path'
 import { defineConfig, PluginOption } from 'vite'
 import fs from 'fs'
 
-const PLUGINS = ['filtered-dynamic-link', 'localized-boolean', 'sync-blocks-button']
+const PLUGINS = [
+  'filtered-dynamic-link',
+  'localized-boolean',
+  'sync-blocks-button',
+  'conditionally-disabled-field',
+  'structured-text-default-value',
+]
 
 /**
  * Moves generated index.html files from dist/src/plugins/[name]/index.html

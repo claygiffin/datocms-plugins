@@ -49,10 +49,20 @@ export const LocalizedBoolean: React.FC<Props> = ({ ctx }) => {
 
       if (!ctx.currentUserAccessToken) {
         console.error('currentUserAccessToken missing in ctx')
+        // Fallback to localized if token is missing
+        if (!currentValue) {
+          await ctx.setFieldValue(ctx.fieldPath, true)
+        }
         return
       }
 
-      if (!templateId || !parentBlockKey) return
+      // If missing templateId or block key, fallback to localized
+      if (!templateId || !parentBlockKey) {
+        if (!currentValue) {
+          await ctx.setFieldValue(ctx.fieldPath, true)
+        }
+        return
+      }
 
       const client = buildClient({
         apiToken: ctx.currentUserAccessToken,
@@ -60,29 +70,41 @@ export const LocalizedBoolean: React.FC<Props> = ({ ctx }) => {
 
       // 1. Fetch template record using client
       const templateRecord = await client.items.find(templateId)
-      if (!templateRecord) return
+      if (!templateRecord) {
+        if (!currentValue) await ctx.setFieldValue(ctx.fieldPath, true)
+        return
+      }
 
-      // 2. Fetch target block ID (supports both single string ID or array of IDs)
+      // 2. Fetch target block ID
       const rawBlockValue = get(templateRecord, parentBlockKey) as
         | string
         | string[]
         | undefined
-      if (!rawBlockValue) return
+      if (!rawBlockValue) {
+        if (!currentValue) await ctx.setFieldValue(ctx.fieldPath, true)
+        return
+      }
 
       let targetBlockId: string | undefined
 
       if (Array.isArray(rawBlockValue)) {
-        // Multiple Modular Block: pick the block ID matching current array index
         targetBlockId = rawBlockValue[blockIndexInArray]
       } else {
-        // Single Modular Block
         targetBlockId = rawBlockValue
       }
 
-      if (!targetBlockId) return
+      if (!targetBlockId) {
+        if (!currentValue) await ctx.setFieldValue(ctx.fieldPath, true)
+        return
+      }
 
       // 3. Fetch the target block record
       const templateBlock = await client.items.find(targetBlockId)
+      if (!templateBlock) {
+        if (!currentValue) await ctx.setFieldValue(ctx.fieldPath, true)
+        return
+      }
+
       const templateFieldIsLocalized = Boolean(get(templateBlock, currentFieldKey))
 
       if (typeof templateBlock[targetFieldName] === 'string') {
@@ -92,12 +114,16 @@ export const LocalizedBoolean: React.FC<Props> = ({ ctx }) => {
         ctx.setFieldValue(targetFieldPath, templateBlock['heading'])
       }
 
-      // 4. Extract boolean value and sync to current field
+      // 4. Sync boolean value
       if (templateFieldIsLocalized !== currentValue) {
         await ctx.setFieldValue(ctx.fieldPath, templateFieldIsLocalized)
       }
     } catch (error) {
       console.error('Error computing template boolean value:', error)
+      // Fallback to localized on API or network errors
+      if (!currentValue) {
+        await ctx.setFieldValue(ctx.fieldPath, true)
+      }
     } finally {
       setLoading(false)
     }
@@ -108,6 +134,9 @@ export const LocalizedBoolean: React.FC<Props> = ({ ctx }) => {
     currentFieldKey,
     currentValue,
     parentBlockKey,
+    targetFieldName,
+    targetFieldPath,
+    ctx,
   ])
 
   useEffect(() => {

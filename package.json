@@ -27,9 +27,14 @@
   "dependencies": {
     "@datocms/cma-client-browser": "^5.6.0",
     "@hello-pangea/dnd": "^18.0.1",
+    "datocms-html-to-structured-text": "^6.0.0",
     "datocms-plugin-sdk": "*",
     "datocms-react-ui": "*",
+    "datocms-structured-text-slate-utils": "^6.0.1",
+    "datocms-structured-text-utils": "^6.0.1",
     "lodash": "^4.18.1",
+    "marked": "^18.0.11",
+    "parse5": "^8.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.7.0",
@@ -37,6 +42,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.17.24",
+    "@types/marked": "^5.0.2",
     "@types/node": "^26.1.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

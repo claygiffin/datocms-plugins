@@ -22,49 +22,86 @@ type Option = {
 export type FieldFilterPair = {
   currentRecordField: string
   targetRecordField: string
-  ignoreValue?: string
+  ignoreValue?: any
 }
 
 const getBlockPath = (fieldPath: string) => {
   const parts = fieldPath.split('.')
+  if (parts.length <= 1) return ''
   parts.pop()
   return parts.join('.')
 }
 
 const isArrayAsString = (value: any) =>
-  typeof value === 'string' && value[0] === '[' && value[value.length - 1] === ']'
+  typeof value === 'string' && value.trim().startsWith('[') && value.trim().endsWith(']')
 
-const arrayifyValue = (
-  rawValue: string | number | boolean | object | (string | object)[],
-): any[] => {
+const arrayifyValue = (rawValue: any): any[] => {
+  if (rawValue === null || rawValue === undefined) {
+    return []
+  }
   if (Array.isArray(rawValue)) {
     return rawValue
   }
   if (isArrayAsString(rawValue)) {
-    return JSON.parse(rawValue as string)
+    try {
+      return JSON.parse(rawValue)
+    } catch (e) {
+      return [rawValue]
+    }
   }
   return [rawValue]
 }
 
-const shouldIgnoreValue = (rawValue: any, ignoreConfig?: string): boolean => {
-  if (ignoreConfig === undefined || ignoreConfig === null) return false
-  if (ignoreConfig === 'null') return rawValue === null
-  if (ignoreConfig === 'undefined') return rawValue === undefined
-  if (ignoreConfig === 'true' || ignoreConfig === 'TRUE') return rawValue === true
-  if (ignoreConfig === 'false' || ignoreConfig === 'FALSE') return rawValue === false
-  if (isArrayAsString(ignoreConfig)) {
-    const currentValue = arrayifyValue(rawValue)
-    const ignoreValue = arrayifyValue(ignoreConfig)
-    return (
-      (currentValue.length === 0 && ignoreValue.length === 0) ||
-      arrayifyValue(rawValue)?.includes(arrayifyValue(ignoreConfig))
-    )
+const shouldIgnoreValue = (rawValue: any, ignoreConfig?: any): boolean => {
+  // Normalize strings/primitives to unified representation
+  const normalize = (val: any): string => {
+    if (val === null) return 'null'
+    if (val === undefined) return 'undefined'
+    return String(val).trim().toLowerCase()
   }
-  if (rawValue !== null && rawValue !== undefined) {
-    return (
-      String(rawValue).trim().toLowerCase() === String(ignoreConfig).trim().toLowerCase()
-    )
+
+  // Helper to extract items into a clean array, expanding stringified arrays like "[]" or "['a', 'b']"
+  const parseToArray = (val: any): any[] => {
+    if (val === null || val === undefined) return []
+    if (Array.isArray(val)) return val
+    if (typeof val === 'string') {
+      const trimmed = val.trim()
+      if (trimmed === '[]' || trimmed === '') return []
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          return JSON.parse(trimmed)
+        } catch {
+          return [trimmed]
+        }
+      }
+    }
+    return [val]
   }
+
+  const rawArray = parseToArray(rawValue)
+  const ignoreArray = parseToArray(ignoreConfig)
+
+  // 1. Both are empty (e.g. rawValue is [] and ignoreValue is "[]", [], null, or "")
+  if (rawArray.length === 0 && ignoreArray.length === 0) {
+    return true
+  }
+
+  // 2. Direct equality match for primitive strings, numbers, booleans, 'null', and 'undefined'
+  const normalizedRaw = normalize(rawValue)
+  const normalizedIgnore = normalize(ignoreConfig)
+
+  if (normalizedRaw === normalizedIgnore) {
+    return true
+  }
+
+  // 3. Match elements in arrays
+  if (rawArray.length > 0 && ignoreArray.length > 0) {
+    const normalizedRawItems = rawArray.map(normalize)
+    const normalizedIgnoreItems = ignoreArray.map(normalize)
+
+    return normalizedRawItems.some((item) => normalizedIgnoreItems.includes(item))
+  }
+
   return false
 }
 
@@ -81,7 +118,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     const legacyCurrent =
       (ctx.parameters.currentRecordField as string) ||
       (ctx.parameters.filterByField as string) ||
-      'school'
+      'site'
     const legacyTarget = (ctx.parameters.targetRecordField as string) || legacyCurrent
 
     return [{ currentRecordField: legacyCurrent, targetRecordField: legacyTarget }]
@@ -92,22 +129,18 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
     return fieldPairs.map((pair) => {
       let rawValue: any
-
       const rawField = pair.currentRecordField?.trim() || ''
 
-      // 1. Handle hardcoded static values using STRING(...) or VALUE(...)
+      // 1. Handle hardcoded static values
       const staticMatch = rawField.match(/^(?:STRING|VALUE)\((.*)\)$/i)
 
       if (staticMatch) {
         let staticVal: any = staticMatch[1].trim()
-
-        // Strip surrounding single/double quotes if present
         if (/^['"].*['"]$/.test(staticVal)) {
           staticVal = staticVal.slice(1, -1)
         }
-
-        // Parse explicit primitive strings ("null", "true", "false")
         if (staticVal.toLowerCase() === 'null') staticVal = null
+        else if (staticVal.toLowerCase() === 'undefined') staticVal = undefined
         else if (staticVal.toLowerCase() === 'true') staticVal = true
         else if (staticVal.toLowerCase() === 'false') staticVal = false
 
@@ -118,17 +151,21 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         const fieldInBlock = rawField.replace('thisBlock.', '')
         const absolutePath = blockPath ? `${blockPath}.${fieldInBlock}` : fieldInBlock
         rawValue = get(ctx.formValues, absolutePath)
+
+        if (rawValue === undefined && blockPath) {
+          rawValue = get(ctx.formValues, fieldInBlock)
+        }
       }
       // 3. Fallback to reading standard field key
       else {
         rawValue = get(ctx.formValues, rawField)
       }
 
-      // 3. Normalize single items vs arrays
+      // 4. Normalize single items vs arrays
       const isArray = Array.isArray(rawValue)
       const rawArray = arrayifyValue(rawValue)
 
-      // 4. Extract valid IDs / values handling objects & primitives
+      // 5. Extract valid IDs / values
       const extractedVal = rawArray
         .map((item: any) => {
           if (typeof item === 'string') return item.trim()
@@ -145,8 +182,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             item !== null && item !== '',
         )
 
-      // 5. Check ignore configurations against the raw value
-      const isIgnored = shouldIgnoreValue(rawValue, pair.ignoreValue)
+      // 6. Check ignore criteria against BOTH target and current fields/values
+      const isCurrentIgnored = shouldIgnoreValue(rawValue, pair.ignoreValue)
+      const isTargetIgnored = shouldIgnoreValue(pair.targetRecordField, pair.ignoreValue)
+
+      const isIgnored = isCurrentIgnored || isTargetIgnored
       const hasValue = extractedVal.length > 0
 
       return {
@@ -159,6 +199,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       }
     })
   }, [ctx.formValues, ctx.fieldPath, fieldPairs])
+
   const isFilterReady = useMemo(() => {
     return fieldPairs.length > 0 && activeFilters.every((f) => f.hasValue || f.isIgnored)
   }, [fieldPairs, activeFilters])
@@ -168,7 +209,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
 
-  // Cache fetched options so we don't refetch cards we already know about
   const optionsCacheRef = useRef<Map<string, Option>>(new Map())
 
   const isMulti = ctx.field.attributes.field_type === 'links'
@@ -208,7 +248,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return []
   }, [ctx.field.attributes.validators])
 
-  // Track serialized active filters to avoid re-fetching when order of selection changes
   const activeFiltersKey = JSON.stringify(activeFilters)
 
   useEffect(() => {
@@ -253,16 +292,25 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             }
           })
 
-          filteredRecords = await client.items.list({
-            filter: {
-              type: allowedItemTypeIds.join(','),
-              fields: fieldsFilter,
-            },
-            nested: true,
-          })
+          const fetchPromises = allowedItemTypeIds.map((typeId) =>
+            client.items
+              .list({
+                filter: {
+                  type: typeId,
+                  fields: fieldsFilter,
+                },
+                nested: true,
+              })
+              .catch((err) => {
+                console.warn(`Skipping model ${typeId} filter query:`, err)
+                return []
+              }),
+          )
+
+          const results = await Promise.all(fetchPromises)
+          filteredRecords = results.flat()
         }
 
-        // Cache fetched items to avoid redundant fetches on drag
         filteredRecords.forEach((record) => {
           const typeId = record.item_type.id
           const titleKey = titleFieldsMap.get(typeId) || 'name'
@@ -283,13 +331,20 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         const missingIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
 
         if (missingIds.length > 0) {
-          const missingRecords = await client.items.list({
-            filter: {
-              type: allowedItemTypeIds.join(','),
-              ids: missingIds.join(','),
-            },
-            nested: true,
-          })
+          const fetchMissingPromises = allowedItemTypeIds.map((typeId) =>
+            client.items
+              .list({
+                filter: {
+                  type: typeId,
+                  ids: missingIds.join(','),
+                },
+                nested: true,
+              })
+              .catch(() => []),
+          )
+
+          const missingResults = await Promise.all(fetchMissingPromises)
+          const missingRecords = missingResults.flat()
 
           missingRecords.forEach((record) => {
             const typeId = record.item_type.id
@@ -329,20 +384,17 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     loadData()
   }, [isFilterReady, activeFiltersKey, allowedItemTypeIds, ctx.currentUserAccessToken])
 
-  // OPTIMISTIC UPDATE: Single Link Change
   const handleSingleChange = useCallback(
     (newValue: any) => {
       const selected = Array.isArray(newValue) ? newValue[0] : (newValue as Option | null)
       const payload = selected ? selected.value : null
 
-      // 1. Immediate local re-render
       if (selected) {
         setSelectedCards([selected])
       } else {
         setSelectedCards([])
       }
 
-      // 2. Async sync to DatoCMS
       ctx.setFieldValue(ctx.fieldPath, payload)
     },
     [ctx],
@@ -353,33 +405,30 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return availableOptions.filter((opt) => !selectedSet.has(opt.value))
   }, [availableOptions, selectedCards])
 
-  // OPTIMISTIC UPDATE: Add Item
   const handleAddItem = useCallback(
     (selectedOption: any) => {
       if (!selectedOption) return
 
       const newSelected = [...selectedCards, selectedOption]
-      setSelectedCards(newSelected) // 1. Immediate local re-render
+      setSelectedCards(newSelected)
 
       const updatedIds = newSelected.map((item) => item.value)
-      ctx.setFieldValue(ctx.fieldPath, updatedIds) // 2. Async sync to DatoCMS
+      ctx.setFieldValue(ctx.fieldPath, updatedIds)
     },
     [selectedCards, ctx],
   )
 
-  // OPTIMISTIC UPDATE: Remove Item
   const handleRemoveItem = useCallback(
     (idToRemove: string) => {
       const newSelected = selectedCards.filter((item) => item.value !== idToRemove)
-      setSelectedCards(newSelected) // 1. Immediate local re-render
+      setSelectedCards(newSelected)
 
       const updatedIds = newSelected.map((item) => item.value)
-      ctx.setFieldValue(ctx.fieldPath, updatedIds) // 2. Async sync to DatoCMS
+      ctx.setFieldValue(ctx.fieldPath, updatedIds)
     },
     [selectedCards, ctx],
   )
 
-  // OPTIMISTIC UPDATE: Reorder (Drag & Drop)
   const handleDragEnd = useCallback(
     (result: DropResult) => {
       if (!result.destination) return
@@ -388,10 +437,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       const [reorderedItem] = items.splice(result.source.index, 1)
       items.splice(result.destination.index, 0, reorderedItem)
 
-      setSelectedCards(items) // 1. Immediate local re-render (instant snap)
+      setSelectedCards(items)
 
       const updatedIds = items.map((item) => item.value)
-      ctx.setFieldValue(ctx.fieldPath, updatedIds) // 2. Async sync to DatoCMS
+      ctx.setFieldValue(ctx.fieldPath, updatedIds)
     },
     [selectedCards, ctx],
   )
@@ -401,12 +450,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     availableOptions.find((opt) => opt.value === currentIds[0]) ||
     (currentIds[0] ? { label: `ID: ${currentIds[0]}`, value: currentIds[0] } : null)
 
-  const missingFieldsNames = fieldPairs
-    .filter((p) => {
-      const active = activeFilters.find((f) => f.currentField === p.currentRecordField)
-      return !active || (!active.hasValue && !active.isIgnored)
-    })
-    .map((p) => p.currentRecordField)
+  const missingFieldsNames = useMemo(() => {
+    return activeFilters
+      .filter((f) => !f.hasValue && !f.isIgnored)
+      .map((f) => f.currentField)
+  }, [activeFilters])
 
   const isSingleInvalid =
     !isMulti && currentIds[0] && invalidSelectedIds.has(currentIds[0])
@@ -423,6 +471,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     }
     return `Search and add record...`
   })()
+
+  console.log(fieldPairs)
 
   return (
     <Canvas ctx={ctx}>
@@ -458,8 +508,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
               controlShouldRenderValue={!selectedCards?.[0]?.value}
               formatOptionLabel={(data) => (
                 <div className={styles.dropdownOption}>
-                  <span data-status={data.status} className={styles.indicator} />
-                  <span>{data.label}</span>
+                  <span data-status={data?.status} className={styles.indicator} />
+                  <span>{data?.label}</span>
                 </div>
               )}
             />
@@ -498,10 +548,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
               data && (
                 <div className={styles.dropdownOption}>
                   <span
-                    data-status={data.status || undefined}
+                    data-status={data?.status || undefined}
                     className={styles.indicator}
                   />
-                  <span>{data.label}</span>
+                  <span>{data?.label}</span>
                 </div>
               )
             }

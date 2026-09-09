@@ -472,8 +472,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return `Search and add record...`
   })()
 
-  console.log(fieldPairs)
-
   return (
     <Canvas ctx={ctx}>
       {allowedItemTypeIds.length === 0 ?

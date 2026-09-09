@@ -1,14 +1,21 @@
 import { RenderFieldExtensionCtx } from 'datocms-plugin-sdk'
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { AddonParameters } from './ConfigScreen'
+
+import { type ItemMeta } from '@datocms/cma-client/dist/types/generated/RawApiTypes'
 
 export const ConditionallyDisabledField = ({ ctx }: { ctx: RenderFieldExtensionCtx }) => {
   const params = ctx.parameters as unknown as AddonParameters
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!params?.targetApiKey) return
 
-    const targetValue = ctx.formValues[params.targetApiKey]
+    const targetValue = (() => {
+      if (params.targetApiKey.startsWith('meta.')) {
+        const targetMetaApiKey = params.targetApiKey.slice(5) as keyof ItemMeta
+        return ctx.item?.meta?.[targetMetaApiKey]
+      }
+      return ctx.formValues[params.targetApiKey]
+    })()
     let matches = false
 
     switch (params.operator) {

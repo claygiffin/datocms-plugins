@@ -3,6 +3,7 @@ import { DragDropContext, Draggable, DropResult, Droppable } from '@hello-pangea
 import { RenderFieldExtensionCtx } from 'datocms-plugin-sdk'
 import { Canvas, SelectInput, Spinner } from 'datocms-react-ui'
 import 'datocms-react-ui/styles.css'
+import debounce from 'lodash/debounce'
 import get from 'lodash/get'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MdDragIndicator } from 'react-icons/md'
@@ -23,6 +24,12 @@ export type FieldFilterPair = {
   currentRecordField: string
   targetRecordField: string
   ignoreValue?: any
+}
+
+// Global cache shared across all instance renders in the same window/session
+const schemaCache = {
+  itemTypes: null as any[] | null,
+  fields: new Map<string, any>(),
 }
 
 const getBlockPath = (fieldPath: string) => {
@@ -53,14 +60,12 @@ const arrayifyValue = (rawValue: any): any[] => {
 }
 
 const shouldIgnoreValue = (rawValue: any, ignoreConfig?: any): boolean => {
-  // Normalize strings/primitives to unified representation
   const normalize = (val: any): string => {
     if (val === null) return 'null'
     if (val === undefined) return 'undefined'
     return String(val).trim().toLowerCase()
   }
 
-  // Helper to extract items into a clean array, expanding stringified arrays like "[]" or "['a', 'b']"
   const parseToArray = (val: any): any[] => {
     if (val === null || val === undefined) return []
     if (Array.isArray(val)) return val
@@ -81,12 +86,10 @@ const shouldIgnoreValue = (rawValue: any, ignoreConfig?: any): boolean => {
   const rawArray = parseToArray(rawValue)
   const ignoreArray = parseToArray(ignoreConfig)
 
-  // 1. Both are empty (e.g. rawValue is [] and ignoreValue is "[]", [], null, or "")
   if (rawArray.length === 0 && ignoreArray.length === 0) {
     return true
   }
 
-  // 2. Direct equality match for primitive strings, numbers, booleans, 'null', and 'undefined'
   const normalizedRaw = normalize(rawValue)
   const normalizedIgnore = normalize(ignoreConfig)
 
@@ -94,7 +97,6 @@ const shouldIgnoreValue = (rawValue: any, ignoreConfig?: any): boolean => {
     return true
   }
 
-  // 3. Match elements in arrays
   if (rawArray.length > 0 && ignoreArray.length > 0) {
     const normalizedRawItems = rawArray.map(normalize)
     const normalizedIgnoreItems = ignoreArray.map(normalize)
@@ -131,7 +133,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       let rawValue: any
       const rawField = pair.currentRecordField?.trim() || ''
 
-      // 1. Handle hardcoded static values
       const staticMatch = rawField.match(/^(?:STRING|VALUE)\((.*)\)$/i)
 
       if (staticMatch) {
@@ -145,9 +146,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         else if (staticVal.toLowerCase() === 'false') staticVal = false
 
         rawValue = staticVal
-      }
-      // 2. Resolve path for 'thisBlock.' fields vs top-level fields
-      else if (rawField.startsWith('thisBlock.')) {
+      } else if (rawField.startsWith('thisBlock.')) {
         const fieldInBlock = rawField.replace('thisBlock.', '')
         const absolutePath = blockPath ? `${blockPath}.${fieldInBlock}` : fieldInBlock
         rawValue = get(ctx.formValues, absolutePath)
@@ -155,17 +154,13 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         if (rawValue === undefined && blockPath) {
           rawValue = get(ctx.formValues, fieldInBlock)
         }
-      }
-      // 3. Fallback to reading standard field key
-      else {
+      } else {
         rawValue = get(ctx.formValues, rawField)
       }
 
-      // 4. Normalize single items vs arrays
       const isArray = Array.isArray(rawValue)
       const rawArray = arrayifyValue(rawValue)
 
-      // 5. Extract valid IDs / values
       const extractedVal = rawArray
         .map((item: any) => {
           if (typeof item === 'string') return item.trim()
@@ -182,7 +177,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             item !== null && item !== '',
         )
 
-      // 6. Check ignore criteria against BOTH target and current fields/values
       const isCurrentIgnored = shouldIgnoreValue(rawValue, pair.ignoreValue)
       const isTargetIgnored = shouldIgnoreValue(pair.targetRecordField, pair.ignoreValue)
 
@@ -256,28 +250,52 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       return
     }
 
-    async function loadData() {
+    const executeFetch = debounce(async () => {
       setLoading(true)
       try {
         const client = buildClient({
           apiToken: ctx.currentUserAccessToken!,
         })
 
-        const itemTypes = await client.itemTypes.list()
+        if (!schemaCache.itemTypes) {
+          schemaCache.itemTypes = await client.itemTypes.list()
+        }
+        const itemTypes = schemaCache.itemTypes
         const targetTypes = itemTypes.filter((it) => allowedItemTypeIds.includes(it.id))
+
         const titleFieldsMap = new Map<string, string>()
         const typeNamesMap = new Map<string, string>()
 
+        const missingTitleFieldIds = targetTypes
+          .map((t) => t.title_field?.id)
+          .filter((id): id is string => Boolean(id) && !schemaCache.fields.has(id))
+
+        if (missingTitleFieldIds.length > 0) {
+          await Promise.all(
+            missingTitleFieldIds.map(async (id) => {
+              try {
+                const field = await client.fields.find(id)
+                schemaCache.fields.set(id, field)
+              } catch (e) {
+                console.warn(`Failed to retrieve field ${id}`, e)
+              }
+            }),
+          )
+        }
+
         for (const type of targetTypes) {
           typeNamesMap.set(type.id, type.name)
-          if (type.title_field) {
-            const field = await client.fields.find(type.title_field.id)
-            titleFieldsMap.set(type.id, field.api_key)
+          if (type.title_field && schemaCache.fields.has(type.title_field.id)) {
+            titleFieldsMap.set(
+              type.id,
+              schemaCache.fields.get(type.title_field.id).api_key,
+            )
           } else {
             titleFieldsMap.set(type.id, 'name')
           }
         }
 
+        // 3. Query filtered records
         let filteredRecords: any[] = []
         if (isFilterReady) {
           const fieldsFilter: Record<string, any> = {}
@@ -379,10 +397,20 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         setLoading(false)
         setInitialLoading(false)
       }
-    }
+    }, 300)
 
-    loadData()
-  }, [isFilterReady, activeFiltersKey, allowedItemTypeIds, ctx.currentUserAccessToken])
+    executeFetch()
+
+    return () => {
+      executeFetch.cancel()
+    }
+  }, [
+    isFilterReady,
+    activeFiltersKey,
+    allowedItemTypeIds,
+    ctx.currentUserAccessToken,
+    currentIds,
+  ])
 
   const handleSingleChange = useCallback(
     (newValue: any) => {

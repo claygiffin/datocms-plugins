@@ -29,7 +29,6 @@ export const ConfigScreen = ({
   ctx: RenderManualFieldExtensionConfigScreenCtx
 }) => {
   const params = (ctx.parameters || {}) as Partial<AddonParameters>
-
   const updateParam = (key: keyof AddonParameters, value: unknown) => {
     const updated = {
       ...params,

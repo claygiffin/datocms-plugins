@@ -6,6 +6,8 @@ import { type ItemMeta } from '@datocms/cma-client/dist/types/generated/RawApiTy
 
 export const ConditionallyDisabledField = ({ ctx }: { ctx: RenderFieldExtensionCtx }) => {
   const params = ctx.parameters as unknown as AddonParameters
+  ctx.setHeight(0)
+
   useLayoutEffect(() => {
     if (!params?.targetApiKey) return
 

@@ -623,7 +623,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
       console.log(
         `[SyncBlocks] Updating field flag at '${ctx.fieldPath}' to '${isSynced.toString()}'`,
       )
-      ctx.setFieldValue(ctx.fieldPath, isSynced ? 'SYNCED' : 'OUT OF SYNC')
+      ctx.setFieldValue(ctx.fieldPath, isSynced ? ' ' : 'OUT OF SYNC')
     }
   }, [isSynced, currentValue, ctx.setFieldValue])
 

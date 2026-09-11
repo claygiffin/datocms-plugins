@@ -601,7 +601,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
     }
   }
 
-  const currentValue = get(ctx.formValues, ctx.fieldPath) !== 'OUT OF SYNC'
+  const currentValue = get(ctx.formValues, ctx.fieldPath) === ' '
   const isSynced = Boolean(isValid === null ? currentValue : isValid)
   const isDisabled = loading || syncing || isSynced
 

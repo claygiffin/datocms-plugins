@@ -41,7 +41,11 @@ export const LocalizedBoolean: React.FC<Props> = ({ ctx }) => {
 
   const templateId = get(ctx.formValues, 'template') as string | undefined
 
-  const globalFieldValue = useRef('')
+  const targetFieldCurrentValue = get(ctx.formValues, targetFieldPath)
+
+  const globalFieldValue = useRef(
+    typeof targetFieldCurrentValue === 'string' ? targetFieldCurrentValue : '',
+  )
 
   const syncFromTemplate = useCallback(async () => {
     try {

@@ -534,9 +534,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
   // const isInitializedRef = useRef(false)
   useEffect(() => {
-    ctx.stopAutoResizer()
-  }, [ctx])
-  useEffect(() => {
     ctx.updateHeight(60)
   }, [ctx])
 
@@ -563,7 +560,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   }, [ctx])
 
   return (
-    <Canvas ctx={ctx}>
+    <Canvas ctx={ctx} noAutoResizer>
       <div ref={containerRef}>
         {allowedItemTypeIds.length === 0 ?
           <div className={styles.dangerMessage}>

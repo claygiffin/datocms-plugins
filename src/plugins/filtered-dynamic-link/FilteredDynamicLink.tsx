@@ -295,7 +295,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           }
         }
 
-        // 3. Query filtered records
+        // Query filtered records
         let filteredRecords: any[] = []
         if (isFilterReady) {
           const fieldsFilter: Record<string, any> = {}
@@ -318,6 +318,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                   fields: fieldsFilter,
                 },
                 nested: true,
+                limit: 500,
               })
               .catch((err) => {
                 console.warn(`Skipping model ${typeId} filter query:`, err)
@@ -473,6 +474,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     [selectedCards, ctx],
   )
 
+  const handleMenuClose = useCallback(() => {
+    ctx.updateHeight()
+  }, [ctx])
+
   const singleSelectedValue =
     selectedCards[0] ||
     availableOptions.find((opt) => opt.value === currentIds[0]) ||
@@ -532,6 +537,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
               isClearable={true}
               placeholder={selectedCards?.[0]?.value ? '' : 'Select link...'}
               controlShouldRenderValue={!selectedCards?.[0]?.value}
+              menuPortalTarget={
+                typeof document !== 'undefined' ? document.body : undefined
+              }
+              menuPosition="fixed"
+              onMenuClose={handleMenuClose}
               formatOptionLabel={(data) => (
                 <div className={styles.dropdownOption}>
                   <span data-status={data?.status} className={styles.indicator} />
@@ -570,6 +580,9 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             onChange={handleAddItem}
             placeholder={placeholderText}
             isDisabled={selectableOptions.length === 0}
+            menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
+            menuPosition="fixed"
+            onMenuClose={handleMenuClose}
             formatOptionLabel={(data) =>
               data && (
                 <div className={styles.dropdownOption}>

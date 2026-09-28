@@ -532,12 +532,9 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return () => observer.disconnect()
   }, [ctx])
 
-  const isInitializedRef = useRef(false)
+  // const isInitializedRef = useRef(false)
   useEffect(() => {
-    if (!isInitializedRef.current) {
-      isInitializedRef.current = true
-      ctx.updateHeight(80)
-    }
+    ctx.updateHeight(60)
     ctx.stopAutoResizer()
   }, [ctx])
 

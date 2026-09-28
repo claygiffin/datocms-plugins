@@ -514,26 +514,49 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // useEffect(() => {
-  //   ctx.stopAutoResizer()
-  // }, [ctx])
-  // useEffect(() => {
-  //   if (!containerRef.current) return
+  useEffect(() => {
+    if (!containerRef.current) return
 
-  //   const observer = new ResizeObserver((entries) => {
-  //     for (const entry of entries) {
-  //       // Measure exact content box, ignoring off-screen react-select elements
-  //       const contentHeight = Math.ceil(
-  //         entry.borderBoxSize[0]?.blockSize || entry.contentRect.height,
-  //       )
-  //       ctx.updateHeight(contentHeight + 20)
-  //     }
-  //   })
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Measure exact content box, ignoring off-screen react-select elements
+        const contentHeight = Math.ceil(
+          entry.borderBoxSize[0]?.blockSize || entry.contentRect.height,
+        )
+        ctx.updateHeight(contentHeight)
+      }
+    })
 
-  //   observer.observe(containerRef.current)
+    observer.observe(containerRef.current)
 
-  //   return () => observer.disconnect()
-  // }, [ctx])
+    return () => observer.disconnect()
+  }, [ctx])
+
+  useEffect(() => {
+    ctx.stopAutoResizer()
+  }, [ctx])
+
+  const handleMenuOpen = useCallback(() => {
+    const calculateDropdownHeight = (optionCount: number) => {
+      const CONTROL_HEIGHT = 40
+      const OPTION_HEIGHT = 34.5
+      const PADDING = 20
+      const MAX_VISIBLE_OPTIONS = 5
+
+      const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
+      const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 60
+
+      return CONTROL_HEIGHT + menuHeight + PADDING
+    }
+    const count = isMulti ? selectableOptions.length : availableOptions.length
+    ctx.updateHeight(calculateDropdownHeight(count))
+  }, [ctx, isMulti, selectableOptions.length, availableOptions.length])
+
+  const handleMenuClose = useCallback(() => {
+    setTimeout(() => {
+      ctx.updateHeight()
+    }, 60)
+  }, [ctx])
 
   return (
     <Canvas ctx={ctx}>
@@ -564,6 +587,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                 value={singleSelectedValue}
                 options={availableOptions}
                 onChange={handleSingleChange}
+                onMenuOpen={handleMenuOpen}
+                onMenuClose={handleMenuClose}
                 isSearchable={true}
                 isClearable={true}
                 placeholder={selectedCards?.[0]?.value ? '' : 'Select link...'}
@@ -604,6 +629,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
               value={null}
               options={selectableOptions}
               onChange={handleAddItem}
+              onMenuOpen={handleMenuOpen}
+              onMenuClose={handleMenuClose}
               placeholder={placeholderText}
               isDisabled={selectableOptions.length === 0}
               formatOptionLabel={(data) =>

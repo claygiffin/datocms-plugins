@@ -19,7 +19,6 @@ connect({
         type: 'editor',
         fieldTypes: ['links', 'link'], // Works on native Link(s)
         configurable: true, // Enables per-field configuration screen
-        initialHeight: 60,
       },
     ]
   },

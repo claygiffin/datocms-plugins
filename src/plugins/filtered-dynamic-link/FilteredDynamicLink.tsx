@@ -512,29 +512,28 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return `Search and add record...`
   })()
 
-  useEffect(() => {
-    ctx.stopAutoResizer()
-  }, [ctx])
-  
   const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!containerRef.current) return
+  // useEffect(() => {
+  //   ctx.stopAutoResizer()
+  // }, [ctx])
+  // useEffect(() => {
+  //   if (!containerRef.current) return
 
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        // Measure exact content box, ignoring off-screen react-select elements
-        const contentHeight = Math.ceil(
-          entry.borderBoxSize[0]?.blockSize || entry.contentRect.height,
-        )
-        ctx.updateHeight(contentHeight)
-      }
-    })
+  //   const observer = new ResizeObserver((entries) => {
+  //     for (const entry of entries) {
+  //       // Measure exact content box, ignoring off-screen react-select elements
+  //       const contentHeight = Math.ceil(
+  //         entry.borderBoxSize[0]?.blockSize || entry.contentRect.height,
+  //       )
+  //       ctx.updateHeight(contentHeight + 20)
+  //     }
+  //   })
 
-    observer.observe(containerRef.current)
+  //   observer.observe(containerRef.current)
 
-    return () => observer.disconnect()
-  }, [ctx])
+  //   return () => observer.disconnect()
+  // }, [ctx])
 
   return (
     <Canvas ctx={ctx}>

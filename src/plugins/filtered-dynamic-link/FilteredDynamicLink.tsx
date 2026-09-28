@@ -512,19 +512,22 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return `Search and add record...`
   })()
 
-  const calculateDropdownHeight = (optionCount: number) => {
-    const CONTROL_HEIGHT = 50
-    const OPTION_HEIGHT = 38
-    const PADDING = 20
-    const MAX_VISIBLE_OPTIONS = 6
-
-    const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
-    const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 50
-
-    return CONTROL_HEIGHT + menuHeight + PADDING
-  }
+  useEffect(() => {
+    ctx.stopAutoResizer()
+  }, [ctx])
 
   const handleMenuOpen = useCallback(() => {
+    const calculateDropdownHeight = (optionCount: number) => {
+      const CONTROL_HEIGHT = 50
+      const OPTION_HEIGHT = 38
+      const PADDING = 20
+      const MAX_VISIBLE_OPTIONS = 6
+
+      const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
+      const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 50
+
+      return CONTROL_HEIGHT + menuHeight + PADDING
+    }
     const count = isMulti ? selectableOptions.length : availableOptions.length
     ctx.updateHeight(calculateDropdownHeight(count))
   }, [ctx, isMulti, selectableOptions.length, availableOptions.length])

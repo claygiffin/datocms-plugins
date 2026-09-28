@@ -532,11 +532,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return () => observer.disconnect()
   }, [ctx])
 
-  // const isInitializedRef = useRef(false)
-  useEffect(() => {
-    ctx.updateHeight(60)
-  }, [ctx])
-
   const handleMenuOpen = useCallback(() => {
     const calculateDropdownHeight = (optionCount: number) => {
       const CONTROL_HEIGHT = 60

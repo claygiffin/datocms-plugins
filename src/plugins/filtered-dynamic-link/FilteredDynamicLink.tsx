@@ -512,6 +512,29 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return `Search and add record...`
   })()
 
+  const calculateDropdownHeight = (optionCount: number) => {
+    const CONTROL_HEIGHT = 50
+    const OPTION_HEIGHT = 38
+    const PADDING = 20
+    const MAX_VISIBLE_OPTIONS = 6
+
+    const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
+    const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 50
+
+    return CONTROL_HEIGHT + menuHeight + PADDING
+  }
+
+  const handleMenuOpen = useCallback(() => {
+    const count = isMulti ? selectableOptions.length : availableOptions.length
+    ctx.updateHeight(calculateDropdownHeight(count))
+  }, [ctx, isMulti, selectableOptions.length, availableOptions.length])
+
+  const handleMenuClose = useCallback(() => {
+    setTimeout(() => {
+      ctx.updateHeight()
+    }, 50)
+  }, [ctx])
+
   return (
     <Canvas ctx={ctx}>
       {allowedItemTypeIds.length === 0 ?
@@ -540,6 +563,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
               value={singleSelectedValue}
               options={availableOptions}
               onChange={handleSingleChange}
+              onMenuOpen={handleMenuOpen}
+              onMenuClose={handleMenuClose}
               isSearchable={true}
               isClearable={true}
               placeholder={selectedCards?.[0]?.value ? '' : 'Select link...'}
@@ -580,6 +605,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             value={null}
             options={selectableOptions}
             onChange={handleAddItem}
+            onMenuOpen={handleMenuOpen}
+            onMenuClose={handleMenuClose}
             placeholder={placeholderText}
             isDisabled={selectableOptions.length === 0}
             formatOptionLabel={(data) =>

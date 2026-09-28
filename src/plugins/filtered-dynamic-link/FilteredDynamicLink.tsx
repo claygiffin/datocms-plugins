@@ -604,7 +604,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                     <span>{data?.label}</span>
                   </div>
                 )}
-                maxMenuHeight={225}
+                maxMenuHeight={245}
               />
               {selectedCards.length === 1 && (
                 <div className={styles.optionValue}>
@@ -650,7 +650,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                   </div>
                 )
               }
-              maxMenuHeight={225}
+              maxMenuHeight={245}
             />
             {invalidSelectedIds.size > 0 && (
               <div className={styles.warningMessage}>

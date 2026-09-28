@@ -295,7 +295,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           }
         }
 
-        // Query filtered records
+        // 1. Query filtered records (Paginated)
         let filteredRecords: any[] = []
         if (isFilterReady) {
           const fieldsFilter: Record<string, any> = {}
@@ -310,21 +310,24 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             }
           })
 
-          const fetchPromises = allowedItemTypeIds.map((typeId) =>
-            client.items
-              .list({
+          const fetchPromises = allowedItemTypeIds.map(async (typeId) => {
+            try {
+              const records: any[] = []
+              for await (const record of client.items.listPagedIterator({
                 filter: {
                   type: typeId,
                   fields: fieldsFilter,
                 },
                 nested: true,
-                limit: 500,
-              })
-              .catch((err) => {
-                console.warn(`Skipping model ${typeId} filter query:`, err)
-                return []
-              }),
-          )
+              })) {
+                records.push(record)
+              }
+              return records
+            } catch (err) {
+              console.warn(`Skipping model ${typeId} filter query:`, err)
+              return []
+            }
+          })
 
           const results = await Promise.all(fetchPromises)
           filteredRecords = results.flat()
@@ -347,20 +350,28 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           })
         })
 
+        // 2. Query missing selected records (Paginated)
         const missingIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
 
         if (missingIds.length > 0) {
-          const fetchMissingPromises = allowedItemTypeIds.map((typeId) =>
-            client.items
-              .list({
+          const fetchMissingPromises = allowedItemTypeIds.map(async (typeId) => {
+            try {
+              const records: any[] = []
+              for await (const record of client.items.listPagedIterator({
                 filter: {
                   type: typeId,
                   ids: missingIds.join(','),
                 },
                 nested: true,
-              })
-              .catch(() => []),
-          )
+              })) {
+                records.push(record)
+              }
+              return records
+            } catch (err) {
+              console.warn(`Skipping missing items fetch for model ${typeId}:`, err)
+              return []
+            }
+          })
 
           const missingResults = await Promise.all(fetchMissingPromises)
           const missingRecords = missingResults.flat()

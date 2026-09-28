@@ -1,10 +1,5 @@
 /* Container & Layout */
 
-:global(html),
-:global(body) {
-  overflow: hidden !important;
-}
-
 .container {
   display: flex;
   flex-direction: column;

@@ -295,7 +295,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           }
         }
 
-        // 1. Query filtered records (Paginated)
+        // Query filtered records (Paginated)
         let filteredRecords: any[] = []
         if (isFilterReady) {
           const fieldsFilter: Record<string, any> = {}
@@ -350,7 +350,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           })
         })
 
-        // 2. Query missing selected records (Paginated)
+        // Query missing selected records (Paginated)
         const missingIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
 
         if (missingIds.length > 0) {
@@ -485,10 +485,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     [selectedCards, ctx],
   )
 
-  const handleMenuClose = useCallback(() => {
-    ctx.updateHeight()
-  }, [ctx])
-
   const singleSelectedValue =
     selectedCards[0] ||
     availableOptions.find((opt) => opt.value === currentIds[0]) ||
@@ -548,11 +544,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
               isClearable={true}
               placeholder={selectedCards?.[0]?.value ? '' : 'Select link...'}
               controlShouldRenderValue={!selectedCards?.[0]?.value}
-              menuPortalTarget={
-                typeof document !== 'undefined' ? document.body : undefined
-              }
-              menuPosition="fixed"
-              onMenuClose={handleMenuClose}
               formatOptionLabel={(data) => (
                 <div className={styles.dropdownOption}>
                   <span data-status={data?.status} className={styles.indicator} />
@@ -591,9 +582,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             onChange={handleAddItem}
             placeholder={placeholderText}
             isDisabled={selectableOptions.length === 0}
-            menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
-            menuPosition="fixed"
-            onMenuClose={handleMenuClose}
             formatOptionLabel={(data) =>
               data && (
                 <div className={styles.dropdownOption}>

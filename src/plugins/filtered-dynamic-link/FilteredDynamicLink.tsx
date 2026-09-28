@@ -538,10 +538,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
   const handleMenuOpen = useCallback(() => {
     const calculateDropdownHeight = (optionCount: number) => {
-      const CONTROL_HEIGHT = 40
-      const OPTION_HEIGHT = 34.5
+      const CONTROL_HEIGHT = 60
+      const OPTION_HEIGHT = 37.5
       const PADDING = 20
-      const MAX_VISIBLE_OPTIONS = 5
+      const MAX_VISIBLE_OPTIONS = 6
 
       const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
       const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 60
@@ -599,6 +599,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                     <span>{data?.label}</span>
                   </div>
                 )}
+                maxMenuHeight={225}
               />
               {selectedCards.length === 1 && (
                 <div className={styles.optionValue}>
@@ -644,6 +645,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                   </div>
                 )
               }
+              maxMenuHeight={225}
             />
             {invalidSelectedIds.size > 0 && (
               <div className={styles.warningMessage}>

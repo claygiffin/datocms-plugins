@@ -515,195 +515,186 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   useEffect(() => {
     ctx.stopAutoResizer()
   }, [ctx])
+  
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleMenuOpen = useCallback(() => {
-    const calculateDropdownHeight = (optionCount: number) => {
-      const CONTROL_HEIGHT = 50
-      const OPTION_HEIGHT = 38
-      const PADDING = 20
-      const MAX_VISIBLE_OPTIONS = 6
+  useEffect(() => {
+    if (!containerRef.current) return
 
-      const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
-      const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 50
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Measure exact content box, ignoring off-screen react-select elements
+        const contentHeight = Math.ceil(
+          entry.borderBoxSize[0]?.blockSize || entry.contentRect.height,
+        )
+        ctx.updateHeight(contentHeight)
+      }
+    })
 
-      return CONTROL_HEIGHT + menuHeight + PADDING
-    }
-    const count = isMulti ? selectableOptions.length : availableOptions.length
-    ctx.updateHeight(calculateDropdownHeight(count))
-  }, [ctx, isMulti, selectableOptions.length, availableOptions.length])
+    observer.observe(containerRef.current)
 
-  const handleMenuClose = useCallback(() => {
-    setTimeout(() => {
-      ctx.updateHeight()
-    }, 50)
+    return () => observer.disconnect()
   }, [ctx])
 
   return (
     <Canvas ctx={ctx}>
-      {allowedItemTypeIds.length === 0 ?
-        <div className={styles.dangerMessage}>
-          Please configure the Target Model in the field settings.
-        </div>
-      : initialLoading && currentIds.length > 0 ?
-        <div className={styles.skeletonList}>
-          {currentIds.map((id) => (
-            <div key={id} className={styles.skeletonItem}>
-              <Spinner size={24} />
-              <span>Loading item ({id})...</span>
-            </div>
-          ))}
-        </div>
-      : !isFilterReady && selectedCards.length === 0 ?
-        <div className={styles.mutedMessage}>
-          Please complete all required filter fields (
-          <strong>{missingFieldsNames.join(', ')}</strong>) first.
-        </div>
-      : !isMulti ?
-        <div className={styles.singleOptionContainer}>
-          <div className={isSingleInvalid ? styles.singleSelectError : ''}>
-            <SelectInput
-              isMulti={false}
-              value={singleSelectedValue}
-              options={availableOptions}
-              onChange={handleSingleChange}
-              onMenuOpen={handleMenuOpen}
-              onMenuClose={handleMenuClose}
-              isSearchable={true}
-              isClearable={true}
-              placeholder={selectedCards?.[0]?.value ? '' : 'Select link...'}
-              controlShouldRenderValue={!selectedCards?.[0]?.value}
-              formatOptionLabel={(data) => (
-                <div className={styles.dropdownOption}>
-                  <span data-status={data?.status} className={styles.indicator} />
-                  <span>{data?.label}</span>
+      <div ref={containerRef}>
+        {allowedItemTypeIds.length === 0 ?
+          <div className={styles.dangerMessage}>
+            Please configure the Target Model in the field settings.
+          </div>
+        : initialLoading && currentIds.length > 0 ?
+          <div className={styles.skeletonList}>
+            {currentIds.map((id) => (
+              <div key={id} className={styles.skeletonItem}>
+                <Spinner size={24} />
+                <span>Loading item ({id})...</span>
+              </div>
+            ))}
+          </div>
+        : !isFilterReady && selectedCards.length === 0 ?
+          <div className={styles.mutedMessage}>
+            Please complete all required filter fields (
+            <strong>{missingFieldsNames.join(', ')}</strong>) first.
+          </div>
+        : !isMulti ?
+          <div className={styles.singleOptionContainer}>
+            <div className={isSingleInvalid ? styles.singleSelectError : ''}>
+              <SelectInput
+                isMulti={false}
+                value={singleSelectedValue}
+                options={availableOptions}
+                onChange={handleSingleChange}
+                isSearchable={true}
+                isClearable={true}
+                placeholder={selectedCards?.[0]?.value ? '' : 'Select link...'}
+                controlShouldRenderValue={!selectedCards?.[0]?.value}
+                formatOptionLabel={(data) => (
+                  <div className={styles.dropdownOption}>
+                    <span data-status={data?.status} className={styles.indicator} />
+                    <span>{data?.label}</span>
+                  </div>
+                )}
+              />
+              {selectedCards.length === 1 && (
+                <div className={styles.optionValue}>
+                  <span
+                    data-status={selectedCards[0].status}
+                    className={styles.indicator}
+                  />
+                  <span
+                    className={styles.selectedOption}
+                    onClick={() => {
+                      ctx.editItem(selectedCards[0].value)
+                    }}
+                  >
+                    {selectedCards[0].label}
+                  </span>
                 </div>
               )}
-            />
-            {selectedCards.length === 1 && (
-              <div className={styles.optionValue}>
-                <span
-                  data-status={selectedCards[0].status}
-                  className={styles.indicator}
-                />
-                <span
-                  className={styles.selectedOption}
-                  onClick={() => {
-                    ctx.editItem(selectedCards[0].value)
-                  }}
-                >
-                  {selectedCards[0].label}
-                </span>
+            </div>
+            {isSingleInvalid && (
+              <div className={styles.warningMessage}>
+                ⚠️ Selected item does not match the active filter parameters.
               </div>
             )}
           </div>
-          {isSingleInvalid && (
-            <div className={styles.warningMessage}>
-              ⚠️ Selected item does not match the active filter parameters.
-            </div>
-          )}
-        </div>
-      : <div className={styles.container}>
-          <SelectInput
-            isMulti={false}
-            value={null}
-            options={selectableOptions}
-            onChange={handleAddItem}
-            onMenuOpen={handleMenuOpen}
-            onMenuClose={handleMenuClose}
-            placeholder={placeholderText}
-            isDisabled={selectableOptions.length === 0}
-            formatOptionLabel={(data) =>
-              data && (
-                <div className={styles.dropdownOption}>
-                  <span
-                    data-status={data?.status || undefined}
-                    className={styles.indicator}
-                  />
-                  <span>{data?.label}</span>
-                </div>
-              )
-            }
-          />
-
-          {invalidSelectedIds.size > 0 && (
-            <div className={styles.warningMessage}>
-              ⚠️ {invalidSelectedIds.size} selected item
-              {invalidSelectedIds.size > 1 ? 's' : ''} do
-              {invalidSelectedIds.size === 1 ? 'es' : ''} not match the current filter
-              criteria.
-            </div>
-          )}
-
-          {selectedCards.length > 0 && (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="filtered-cards-list">
-                {(provided) => (
-                  <div
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className={styles.cardsList}
-                  >
-                    {selectedCards.map((item, index) => {
-                      const isInvalid = invalidSelectedIds.has(item.value)
-
-                      return (
-                        <Draggable
-                          key={item.value}
-                          draggableId={item.value}
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              className={`${styles.card} ${
-                                snapshot.isDragging ? styles.cardDragging : ''
-                              } ${isInvalid ? styles.cardInvalid : ''}`}
-                              style={provided.draggableProps.style}
-                            >
-                              <div className={styles.cardContent}>
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className={styles.dragHandle}
-                                  title="Drag to reorder"
-                                >
-                                  <MdDragIndicator />
+        : <div className={styles.container}>
+            <SelectInput
+              isMulti={false}
+              value={null}
+              options={selectableOptions}
+              onChange={handleAddItem}
+              placeholder={placeholderText}
+              isDisabled={selectableOptions.length === 0}
+              formatOptionLabel={(data) =>
+                data && (
+                  <div className={styles.dropdownOption}>
+                    <span
+                      data-status={data?.status || undefined}
+                      className={styles.indicator}
+                    />
+                    <span>{data?.label}</span>
+                  </div>
+                )
+              }
+            />
+            {invalidSelectedIds.size > 0 && (
+              <div className={styles.warningMessage}>
+                ⚠️ {invalidSelectedIds.size} selected item
+                {invalidSelectedIds.size > 1 ? 's' : ''} do
+                {invalidSelectedIds.size === 1 ? 'es' : ''} not match the current filter
+                criteria.
+              </div>
+            )}
+            {selectedCards.length > 0 && (
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="filtered-cards-list">
+                  {(provided) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className={styles.cardsList}
+                    >
+                      {selectedCards.map((item, index) => {
+                        const isInvalid = invalidSelectedIds.has(item.value)
+                        return (
+                          <Draggable
+                            key={item.value}
+                            draggableId={item.value}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`${styles.card} ${
+                                  snapshot.isDragging ? styles.cardDragging : ''
+                                } ${isInvalid ? styles.cardInvalid : ''}`}
+                                style={provided.draggableProps.style}
+                              >
+                                <div className={styles.cardContent}>
+                                  <div
+                                    {...provided.dragHandleProps}
+                                    className={styles.dragHandle}
+                                    title="Drag to reorder"
+                                  >
+                                    <MdDragIndicator />
+                                  </div>
+                                  <button
+                                    className={styles.labelGroup}
+                                    onClick={() => {
+                                      ctx.editItem(item.value)
+                                    }}
+                                  >
+                                    <span
+                                      className={styles.indicator}
+                                      data-status={item.status}
+                                    />
+                                    <span className={styles.title}>{item.label}</span>
+                                  </button>
                                 </div>
-
                                 <button
-                                  className={styles.labelGroup}
-                                  onClick={() => {
-                                    ctx.editItem(item.value)
-                                  }}
+                                  type="button"
+                                  onClick={() => handleRemoveItem(item.value)}
+                                  className={styles.removeButton}
                                 >
-                                  <span
-                                    className={styles.indicator}
-                                    data-status={item.status}
-                                  />
-                                  <span className={styles.title}>{item.label}</span>
+                                  <span className={styles.removeIcon}>×</span>
                                 </button>
                               </div>
-
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItem(item.value)}
-                                className={styles.removeButton}
-                              >
-                                <span className={styles.removeIcon}>×</span>
-                              </button>
-                            </div>
-                          )}
-                        </Draggable>
-                      )
-                    })}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-          )}
-        </div>
-      }
+                            )}
+                          </Draggable>
+                        )
+                      })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+          </div>
+        }
+      </div>
     </Canvas>
   )
 }

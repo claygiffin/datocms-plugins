@@ -534,11 +534,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
   const isInitializedRef = useRef(false)
   useEffect(() => {
-    ctx.stopAutoResizer()
     if (!isInitializedRef.current) {
       isInitializedRef.current = true
-      ctx.updateHeight(60)
+      ctx.updateHeight(80)
     }
+    ctx.stopAutoResizer()
   }, [ctx])
 
   const handleMenuOpen = useCallback(() => {
@@ -604,7 +604,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                     <span>{data?.label}</span>
                   </div>
                 )}
-                maxMenuHeight={245}
+                maxMenuHeight={235}
               />
               {selectedCards.length === 1 && (
                 <div className={styles.optionValue}>
@@ -650,7 +650,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                   </div>
                 )
               }
-              maxMenuHeight={245}
+              maxMenuHeight={235}
             />
             {invalidSelectedIds.size > 0 && (
               <div className={styles.warningMessage}>

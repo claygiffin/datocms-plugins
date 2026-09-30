@@ -350,17 +350,17 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           })
         })
 
-        // Query missing selected records (Paginated)
-        const missingIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
+        // Fixed variable name: uncachedIds
+        const uncachedIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
 
-        if (missingIds.length > 0) {
+        if (uncachedIds.length > 0) {
           const fetchMissingPromises = allowedItemTypeIds.map(async (typeId) => {
             try {
               const records: any[] = []
               for await (const record of client.items.listPagedIterator({
                 filter: {
                   type: typeId,
-                  ids: missingIds.join(','),
+                  ids: uncachedIds.join(','),
                 },
                 nested: true,
               })) {
@@ -397,9 +397,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         const dropdownOptions: Option[] = filteredRecords.map(
           (r) => optionsCacheRef.current.get(r.id)!,
         )
-        const orderedCards: Option[] = currentIds
-          .map((id) => optionsCacheRef.current.get(id))
-          .filter(Boolean) as Option[]
+
+        const orderedCards: Option[] = currentIds.map(
+          (id) => optionsCacheRef.current.get(id) || { label: `ID: ${id}`, value: id },
+        )
 
         setAvailableOptions(dropdownOptions)
         setSelectedCards(orderedCards)
@@ -441,12 +442,9 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   )
 
   const selectableOptions = useMemo(() => {
-    // Only exclude VALID selections from the dropdown, allow selecting from invalid ones
-    const validSelectedSet = new Set(
-      selectedCards.filter((c) => !invalidSelectedIds.has(c.value)).map((c) => c.value),
-    )
-    return availableOptions.filter((opt) => !validSelectedSet.has(opt.value))
-  }, [availableOptions, selectedCards, invalidSelectedIds])
+    const selectedSet = new Set(selectedCards.map((c) => c.value))
+    return availableOptions.filter((opt) => !selectedSet.has(opt.value))
+  }, [availableOptions, selectedCards])
 
   const handleAddItem = useCallback(
     (selectedOption: any) => {
@@ -502,15 +500,16 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   const isSingleInvalid =
     !isMulti && currentIds[0] && invalidSelectedIds.has(currentIds[0])
 
+  const validSelectedCount = useMemo(() => {
+    return selectedCards.filter((c) => availableOptionIds.has(c.value)).length
+  }, [selectedCards, availableOptionIds])
+
   const placeholderText = (() => {
     if (loading) {
       return 'Loading filtered records...'
     }
-    if (invalidSelectedIds.size > 0 && selectableOptions.length === 0) {
-      return 'Remove invalid selections to add new records'
-    }
     if (selectableOptions.length === 0) {
-      if (selectedCards.length > 0) {
+      if (availableOptions.length > 0 && validSelectedCount === availableOptions.length) {
         return 'All matching records are selected'
       }
       return 'No matching records found'

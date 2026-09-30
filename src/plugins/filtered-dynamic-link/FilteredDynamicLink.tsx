@@ -441,9 +441,12 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   )
 
   const selectableOptions = useMemo(() => {
-    const selectedSet = new Set(selectedCards.map((c) => c.value))
-    return availableOptions.filter((opt) => !selectedSet.has(opt.value))
-  }, [availableOptions, selectedCards])
+    // Only exclude VALID selections from the dropdown, allow selecting from invalid ones
+    const validSelectedSet = new Set(
+      selectedCards.filter((c) => !invalidSelectedIds.has(c.value)).map((c) => c.value),
+    )
+    return availableOptions.filter((opt) => !validSelectedSet.has(opt.value))
+  }, [availableOptions, selectedCards, invalidSelectedIds])
 
   const handleAddItem = useCallback(
     (selectedOption: any) => {
@@ -502,6 +505,9 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   const placeholderText = (() => {
     if (loading) {
       return 'Loading filtered records...'
+    }
+    if (invalidSelectedIds.size > 0 && selectableOptions.length === 0) {
+      return 'Remove invalid selections to add new records'
     }
     if (selectableOptions.length === 0) {
       if (selectedCards.length > 0) {

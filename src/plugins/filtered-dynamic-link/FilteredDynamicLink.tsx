@@ -513,12 +513,12 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   })()
 
   // Height Constants (in px)
-  const CONTROL_HEIGHT = 42
-  const CARD_HEIGHT = 48
+  const CONTROL_HEIGHT = 60
+  const CARD_HEIGHT = 40.667
   const CARD_GAP = 8
   const WARNING_HEIGHT = 38
   const CONTAINER_GAP = 12
-  const PADDING = 16
+  const PADDING = 20
 
   // 1. Pure list height (cards only)
   const listHeight = useMemo(() => {
@@ -553,7 +553,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
   // 4. Menu Open: Temporarily expand IF dropdown needs more space than current layout
   const handleMenuOpen = useCallback(() => {
-    const OPTION_HEIGHT = 38
+    const OPTION_HEIGHT = 37.5
     const MAX_VISIBLE_OPTIONS = 6
     const count = isMulti ? selectableOptions.length : availableOptions.length
 

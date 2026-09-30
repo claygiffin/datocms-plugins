@@ -544,7 +544,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return height
   }, [isMulti, isSingleInvalid, invalidSelectedIds.size, selectedCards.length])
 
+  const currentListHeightRef = useRef(currentListHeight)
+
   useEffect(() => {
+    currentListHeightRef.current = currentListHeight
     ctx.updateHeight(currentListHeight)
   }, [ctx, currentListHeight])
 

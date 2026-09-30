@@ -517,40 +517,41 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   const CARD_HEIGHT = 48
   const CARD_GAP = 8
   const WARNING_HEIGHT = 38
+  const CONTAINER_GAP = 12
   const PADDING = 16
 
-  const currentListHeight = useMemo(() => {
-    // Base control height
+  // 1. Pure list height (cards only)
+  const listHeight = useMemo(() => {
+    if (!isMulti || selectedCards.length === 0) return 0
+    return selectedCards.length * CARD_HEIGHT + (selectedCards.length - 1) * CARD_GAP
+  }, [isMulti, selectedCards.length])
+
+  // 2. Base component height (Control + Warnings + Cards List)
+  const currentComponentHeight = useMemo(() => {
     let height = CONTROL_HEIGHT + PADDING
 
     if (!isMulti) {
-      // Single select mode: add height if warning is present
-      if (isSingleInvalid) height += WARNING_HEIGHT
+      if (isSingleInvalid) height += WARNING_HEIGHT + CONTAINER_GAP
       return height
     }
 
-    // Multi select mode: add height for invalid items warning
     if (invalidSelectedIds.size > 0) {
-      height += WARNING_HEIGHT
+      height += WARNING_HEIGHT + CONTAINER_GAP
     }
 
-    // Add total height for selected cards
-    if (selectedCards.length > 0) {
-      const totalCardsHeight =
-        selectedCards.length * CARD_HEIGHT + (selectedCards.length - 1) * CARD_GAP
-      height += totalCardsHeight + CARD_GAP // includes gap above cards list
+    if (listHeight > 0) {
+      height += listHeight + CONTAINER_GAP
     }
 
     return height
-  }, [isMulti, isSingleInvalid, invalidSelectedIds.size, selectedCards.length])
+  }, [isMulti, isSingleInvalid, invalidSelectedIds.size, listHeight])
 
-  const currentListHeightRef = useRef(currentListHeight)
-
+  // 3. Primary layout effect: updates iframe whenever cards or warnings change
   useEffect(() => {
-    currentListHeightRef.current = currentListHeight
-    ctx.updateHeight(currentListHeight)
-  }, [ctx, currentListHeight])
+    ctx.updateHeight(currentComponentHeight)
+  }, [ctx, currentComponentHeight])
 
+  // 4. Menu Open: Temporarily expand IF dropdown needs more space than current layout
   const handleMenuOpen = useCallback(() => {
     const OPTION_HEIGHT = 38
     const MAX_VISIBLE_OPTIONS = 6
@@ -559,20 +560,23 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     const visibleCount = Math.min(count, MAX_VISIBLE_OPTIONS)
     const menuOptionsHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 60
 
-    // Total required height when dropdown is open
-    const REQUIRED_MENU_HEIGHT = CONTROL_HEIGHT + menuOptionsHeight + PADDING
+    const requiredMenuHeight = CONTROL_HEIGHT + menuOptionsHeight + PADDING
 
-    // Only expand if the menu needs more space than the current list height
-    if (REQUIRED_MENU_HEIGHT > currentListHeight) {
-      ctx.updateHeight(REQUIRED_MENU_HEIGHT)
+    if (requiredMenuHeight > currentComponentHeight) {
+      ctx.updateHeight(requiredMenuHeight)
     }
-  }, [ctx, isMulti, selectableOptions.length, availableOptions.length, currentListHeight])
+  }, [
+    ctx,
+    isMulti,
+    selectableOptions.length,
+    availableOptions.length,
+    currentComponentHeight,
+  ])
 
+  // 5. Menu Close: Pass empty handler (or omit) so closing doesn't override the useEffect
   const handleMenuClose = useCallback(() => {
-    setTimeout(() => {
-      ctx.updateHeight(currentListHeight)
-    }, 60)
-  }, [ctx, currentListHeight])
+    ctx.updateHeight(currentComponentHeight)
+  }, [ctx, currentComponentHeight])
 
   return (
     <Canvas ctx={ctx} noAutoResizer>

@@ -251,10 +251,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     }
 
     const executeFetch = debounce(async () => {
-      console.group('🚀 [FilteredDynamicLink] Executing Fetch')
-      console.log('Active Filters:', activeFilters)
-      console.log('Is Filter Ready:', isFilterReady)
-      console.log('Current Form IDs (currentIds):', currentIds)
       setLoading(true)
       try {
         const client = buildClient({
@@ -314,8 +310,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             }
           })
 
-          console.log('Executing DatoCMS query with filter payload:', fieldsFilter)
-
           const fetchPromises = allowedItemTypeIds.map(async (typeId) => {
             try {
               const records: any[] = []
@@ -339,11 +333,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           filteredRecords = results.flat()
         }
 
-        console.log(
-          'Filtered Records returned from API:',
-          filteredRecords.map((r) => r.id),
-        )
-
         filteredRecords.forEach((record) => {
           const typeId = record.item_type.id
           const titleKey = titleFieldsMap.get(typeId) || 'name'
@@ -361,18 +350,17 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           })
         })
 
-        // Uncached selected IDs check
-        const uncachedIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
-        console.log('Uncached IDs needing fallback query:', uncachedIds)
+        // Query missing selected records (Paginated)
+        const missingIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
 
-        if (uncachedIds.length > 0) {
+        if (missingIds.length > 0) {
           const fetchMissingPromises = allowedItemTypeIds.map(async (typeId) => {
             try {
               const records: any[] = []
               for await (const record of client.items.listPagedIterator({
                 filter: {
                   type: typeId,
-                  ids: uncachedIds.join(','),
+                  ids: missingIds.join(','),
                 },
                 nested: true,
               })) {
@@ -387,11 +375,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
 
           const missingResults = await Promise.all(fetchMissingPromises)
           const missingRecords = missingResults.flat()
-
-          console.log(
-            'Missing/Uncached Records returned from API:',
-            missingRecords.map((r) => r.id),
-          )
 
           missingRecords.forEach((record) => {
             const typeId = record.item_type.id
@@ -415,13 +398,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           (r) => optionsCacheRef.current.get(r.id)!,
         )
         const orderedCards: Option[] = currentIds
-          .map(
-            (id) => optionsCacheRef.current.get(id) || { label: `ID: ${id}`, value: id },
-          )
+          .map((id) => optionsCacheRef.current.get(id))
           .filter(Boolean) as Option[]
-
-        console.log('Final availableOptions (Valid matches):', dropdownOptions)
-        console.log('Final selectedCards (Current form values):', orderedCards)
 
         setAvailableOptions(dropdownOptions)
         setSelectedCards(orderedCards)
@@ -430,7 +408,6 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       } finally {
         setLoading(false)
         setInitialLoading(false)
-        console.groupEnd()
       }
     }, 300)
 
@@ -522,16 +499,12 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   const isSingleInvalid =
     !isMulti && currentIds[0] && invalidSelectedIds.has(currentIds[0])
 
-  const validSelectedCount = useMemo(() => {
-    return selectedCards.filter((c) => availableOptionIds.has(c.value)).length
-  }, [selectedCards, availableOptionIds])
-
   const placeholderText = (() => {
     if (loading) {
       return 'Loading filtered records...'
     }
     if (selectableOptions.length === 0) {
-      if (availableOptions.length > 0 && validSelectedCount === availableOptions.length) {
+      if (selectedCards.length > 0) {
         return 'All matching records are selected'
       }
       return 'No matching records found'
@@ -539,70 +512,64 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     return `Search and add record...`
   })()
 
-  // Real-time component state logger
+  // Height Constants (in px)
+  const CONTROL_HEIGHT = 42
+  const CARD_HEIGHT = 48
+  const CARD_GAP = 8
+  const WARNING_HEIGHT = 38
+  const PADDING = 16
+
+  const currentListHeight = useMemo(() => {
+    // Base control height
+    let height = CONTROL_HEIGHT + PADDING
+
+    if (!isMulti) {
+      // Single select mode: add height if warning is present
+      if (isSingleInvalid) height += WARNING_HEIGHT
+      return height
+    }
+
+    // Multi select mode: add height for invalid items warning
+    if (invalidSelectedIds.size > 0) {
+      height += WARNING_HEIGHT
+    }
+
+    // Add total height for selected cards
+    if (selectedCards.length > 0) {
+      const totalCardsHeight =
+        selectedCards.length * CARD_HEIGHT + (selectedCards.length - 1) * CARD_GAP
+      height += totalCardsHeight + CARD_GAP // includes gap above cards list
+    }
+
+    return height
+  }, [isMulti, isSingleInvalid, invalidSelectedIds.size, selectedCards.length])
+
   useEffect(() => {
-    if (loading || initialLoading) return
-
-    const validCards = selectedCards.filter((c) => availableOptionIds.has(c.value))
-    const invalidCards = selectedCards.filter((c) => !availableOptionIds.has(c.value))
-
-    console.group('🔍 [FilteredDynamicLink State Summary]')
-    console.log('1. Active Filters Ready?:', isFilterReady)
-    console.log(
-      '2. Available Options (Count):',
-      availableOptions.length,
-      availableOptions,
-    )
-    console.log('3. Form Current Field IDs (currentIds):', currentIds)
-    console.log('4. Selected Cards Breakdown:', {
-      totalSelected: selectedCards.length,
-      validSelectedCount: validCards.length,
-      invalidSelectedCount: invalidCards.length,
-      validCards,
-      invalidCards,
-    })
-    console.log('5. Selectable Options (Available minus Selected):', selectableOptions)
-    console.log('6. Placeholder Math Evaluation:', {
-      availableOptionsLength: availableOptions.length,
-      selectableOptionsLength: selectableOptions.length,
-      validSelectedCount,
-      evaluatedPlaceholderText: placeholderText,
-    })
-    console.groupEnd()
-  }, [
-    loading,
-    initialLoading,
-    isFilterReady,
-    availableOptions,
-    currentIds,
-    selectedCards,
-    availableOptionIds,
-    selectableOptions,
-    validSelectedCount,
-    placeholderText,
-  ])
+    ctx.updateHeight(currentListHeight)
+  }, [ctx, currentListHeight])
 
   const handleMenuOpen = useCallback(() => {
-    const calculateDropdownHeight = (optionCount: number) => {
-      const CONTROL_HEIGHT = 60
-      const OPTION_HEIGHT = 37.5
-      const PADDING = 20
-      const MAX_VISIBLE_OPTIONS = 6
-
-      const visibleCount = Math.min(optionCount, MAX_VISIBLE_OPTIONS)
-      const menuHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 60
-
-      return CONTROL_HEIGHT + menuHeight + PADDING
-    }
+    const OPTION_HEIGHT = 38
+    const MAX_VISIBLE_OPTIONS = 6
     const count = isMulti ? selectableOptions.length : availableOptions.length
-    ctx.updateHeight(calculateDropdownHeight(count))
-  }, [ctx, isMulti, selectableOptions.length, availableOptions.length])
+
+    const visibleCount = Math.min(count, MAX_VISIBLE_OPTIONS)
+    const menuOptionsHeight = visibleCount > 0 ? visibleCount * OPTION_HEIGHT : 60
+
+    // Total required height when dropdown is open
+    const REQUIRED_MENU_HEIGHT = CONTROL_HEIGHT + menuOptionsHeight + PADDING
+
+    // Only expand if the menu needs more space than the current list height
+    if (REQUIRED_MENU_HEIGHT > currentListHeight) {
+      ctx.updateHeight(REQUIRED_MENU_HEIGHT)
+    }
+  }, [ctx, isMulti, selectableOptions.length, availableOptions.length, currentListHeight])
 
   const handleMenuClose = useCallback(() => {
     setTimeout(() => {
-      ctx.updateHeight()
+      ctx.updateHeight(currentListHeight)
     }, 60)
-  }, [ctx])
+  }, [ctx, currentListHeight])
 
   return (
     <Canvas ctx={ctx} noAutoResizer>
@@ -717,18 +684,18 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                           draggableId={item.value}
                           index={index}
                         >
-                          {(providedDraggable, snapshot) => (
+                          {(provided, snapshot) => (
                             <div
-                              ref={providedDraggable.innerRef}
-                              {...providedDraggable.draggableProps}
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
                               className={`${styles.card} ${
                                 snapshot.isDragging ? styles.cardDragging : ''
                               } ${isInvalid ? styles.cardInvalid : ''}`}
-                              style={providedDraggable.draggableProps.style}
+                              style={provided.draggableProps.style}
                             >
                               <div className={styles.cardContent}>
                                 <div
-                                  {...providedDraggable.dragHandleProps}
+                                  {...provided.dragHandleProps}
                                   className={styles.dragHandle}
                                   title="Drag to reorder"
                                 >

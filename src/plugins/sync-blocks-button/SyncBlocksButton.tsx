@@ -514,7 +514,16 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
 
           if (matchIndex !== -1) {
             const [matchedBlock] = remainingCurrentBlocks.splice(matchIndex, 1)
-            const resolvedValue = matchedBlock.rawObject || matchedBlock.id
+            let resolvedValue = matchedBlock.rawObject || matchedBlock.id
+
+            // Force expansion for matched existing blocks
+            if (typeof resolvedValue === 'object' && resolvedValue !== null) {
+              resolvedValue = {
+                ...resolvedValue,
+                _collapsed: false,
+              }
+            }
+
             console.log(
               `[SyncBlocks] [Sync Loop Step ${idx}] Reusing existing matched block payload:`,
               resolvedValue,
@@ -547,10 +556,11 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
               return
             }
 
-            // Construct valid DatoCMS form state object
+            // Construct valid DatoCMS form state object with _collapsed set to false
             const newBlockPayload: Record<string, any> = {
               item_type: targetLocalizedModel.id,
               itemTypeId: targetLocalizedModel.id,
+              _collapsed: false,
             }
 
             // Fetch target model fields to seed proper field defaults
@@ -580,11 +590,23 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
         const finalValue =
           isSingular ? synchronizedBlockValues[0] : synchronizedBlockValues
 
+        // Ensure all blocks in array or singular value have _collapsed set to false
+        const finalValueWithExpandedBlocks =
+          Array.isArray(finalValue) ?
+            finalValue.map((block) =>
+              typeof block === 'object' && block !== null ?
+                { ...block, _collapsed: false }
+              : block,
+            )
+          : typeof finalValue === 'object' && finalValue !== null ?
+            { ...finalValue, _collapsed: false }
+          : finalValue
+
         console.log(
           `[SyncBlocks] [Sync] Applying final computed value to path '${targetModularFieldPath}':`,
-          finalValue,
+          finalValueWithExpandedBlocks,
         )
-        await ctx.setFieldValue(targetModularFieldPath, finalValue)
+        await ctx.setFieldValue(targetModularFieldPath, finalValueWithExpandedBlocks)
         console.log(
           `[SyncBlocks] [Sync] Field path '${targetModularFieldPath}' set successfully.`,
         )

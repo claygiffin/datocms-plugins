@@ -92,7 +92,8 @@
   &[data-status='draft'] {
     --color--status: var(--color--status-draft--ink);
   }
-  &[data-status='outdated'] {
+  &[data-status='outdated'],
+  &[data-status='updated'] {
     --color--status: var(--color--status-outdated--ink);
   }
 }

@@ -251,6 +251,10 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     }
 
     const executeFetch = debounce(async () => {
+      console.group('🚀 [FilteredDynamicLink] Executing Fetch')
+      console.log('Active Filters:', activeFilters)
+      console.log('Is Filter Ready:', isFilterReady)
+      console.log('Current Form IDs (currentIds):', currentIds)
       setLoading(true)
       try {
         const client = buildClient({
@@ -310,6 +314,8 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             }
           })
 
+          console.log('Executing DatoCMS query with filter payload:', fieldsFilter)
+
           const fetchPromises = allowedItemTypeIds.map(async (typeId) => {
             try {
               const records: any[] = []
@@ -333,6 +339,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           filteredRecords = results.flat()
         }
 
+        console.log(
+          'Filtered Records returned from API:',
+          filteredRecords.map((r) => r.id),
+        )
+
         filteredRecords.forEach((record) => {
           const typeId = record.item_type.id
           const titleKey = titleFieldsMap.get(typeId) || 'name'
@@ -350,8 +361,9 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           })
         })
 
-        // Fixed variable name: uncachedIds
+        // Uncached selected IDs check
         const uncachedIds = currentIds.filter((id) => !optionsCacheRef.current.has(id))
+        console.log('Uncached IDs needing fallback query:', uncachedIds)
 
         if (uncachedIds.length > 0) {
           const fetchMissingPromises = allowedItemTypeIds.map(async (typeId) => {
@@ -376,6 +388,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           const missingResults = await Promise.all(fetchMissingPromises)
           const missingRecords = missingResults.flat()
 
+          console.log(
+            'Missing/Uncached Records returned from API:',
+            missingRecords.map((r) => r.id),
+          )
+
           missingRecords.forEach((record) => {
             const typeId = record.item_type.id
             const titleKey = titleFieldsMap.get(typeId) || 'name'
@@ -397,10 +414,14 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
         const dropdownOptions: Option[] = filteredRecords.map(
           (r) => optionsCacheRef.current.get(r.id)!,
         )
+        const orderedCards: Option[] = currentIds
+          .map(
+            (id) => optionsCacheRef.current.get(id) || { label: `ID: ${id}`, value: id },
+          )
+          .filter(Boolean) as Option[]
 
-        const orderedCards: Option[] = currentIds.map(
-          (id) => optionsCacheRef.current.get(id) || { label: `ID: ${id}`, value: id },
-        )
+        console.log('Final availableOptions (Valid matches):', dropdownOptions)
+        console.log('Final selectedCards (Current form values):', orderedCards)
 
         setAvailableOptions(dropdownOptions)
         setSelectedCards(orderedCards)
@@ -409,6 +430,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
       } finally {
         setLoading(false)
         setInitialLoading(false)
+        console.groupEnd()
       }
     }, 300)
 
@@ -516,6 +538,49 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
     }
     return `Search and add record...`
   })()
+
+  // Real-time component state logger
+  useEffect(() => {
+    if (loading || initialLoading) return
+
+    const validCards = selectedCards.filter((c) => availableOptionIds.has(c.value))
+    const invalidCards = selectedCards.filter((c) => !availableOptionIds.has(c.value))
+
+    console.group('🔍 [FilteredDynamicLink State Summary]')
+    console.log('1. Active Filters Ready?:', isFilterReady)
+    console.log(
+      '2. Available Options (Count):',
+      availableOptions.length,
+      availableOptions,
+    )
+    console.log('3. Form Current Field IDs (currentIds):', currentIds)
+    console.log('4. Selected Cards Breakdown:', {
+      totalSelected: selectedCards.length,
+      validSelectedCount: validCards.length,
+      invalidSelectedCount: invalidCards.length,
+      validCards,
+      invalidCards,
+    })
+    console.log('5. Selectable Options (Available minus Selected):', selectableOptions)
+    console.log('6. Placeholder Math Evaluation:', {
+      availableOptionsLength: availableOptions.length,
+      selectableOptionsLength: selectableOptions.length,
+      validSelectedCount,
+      evaluatedPlaceholderText: placeholderText,
+    })
+    console.groupEnd()
+  }, [
+    loading,
+    initialLoading,
+    isFilterReady,
+    availableOptions,
+    currentIds,
+    selectedCards,
+    availableOptionIds,
+    selectableOptions,
+    validSelectedCount,
+    placeholderText,
+  ])
 
   const handleMenuOpen = useCallback(() => {
     const calculateDropdownHeight = (optionCount: number) => {
@@ -652,18 +717,18 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
                           draggableId={item.value}
                           index={index}
                         >
-                          {(provided, snapshot) => (
+                          {(providedDraggable, snapshot) => (
                             <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
+                              ref={providedDraggable.innerRef}
+                              {...providedDraggable.draggableProps}
                               className={`${styles.card} ${
                                 snapshot.isDragging ? styles.cardDragging : ''
                               } ${isInvalid ? styles.cardInvalid : ''}`}
-                              style={provided.draggableProps.style}
+                              style={providedDraggable.draggableProps.style}
                             >
                               <div className={styles.cardContent}>
                                 <div
-                                  {...provided.dragHandleProps}
+                                  {...providedDraggable.dragHandleProps}
                                   className={styles.dragHandle}
                                   title="Drag to reorder"
                                 >

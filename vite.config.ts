@@ -9,6 +9,7 @@ const PLUGINS = [
   'sync-blocks-button',
   'conditionally-disabled-field',
   'structured-text-default-value',
+  'alphabetical-list',
 ]
 
 /**

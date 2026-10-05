@@ -10,6 +10,7 @@ const PLUGINS = [
   'conditionally-disabled-field',
   'structured-text-default-value',
   'alphabetical-list',
+  'sortable-list',
 ]
 
 /**

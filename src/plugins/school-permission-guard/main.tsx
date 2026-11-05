@@ -3,6 +3,7 @@ import { connect, RenderItemFormOutletCtx } from 'datocms-plugin-sdk'
 import { Canvas } from 'datocms-react-ui'
 import { useEffect, useState } from 'react'
 import { render } from '../../utils/render' // Standard React plugin mount helper
+import 'datocms-react-ui/styles.css'
 
 interface AccessTokenCtx {
   currentUserAccessToken?: string
@@ -40,16 +41,6 @@ const checkSchoolPermission = async (
 ): Promise<{ allowed: boolean; reason?: string }> => {
   const roleName = ctx.currentRole?.attributes?.name
   const assignedSchool = getSchoolFromRole(roleName)
-
-  // console.log(LOG, 'start', {
-  //   roleName,
-  //   assignedSchool,
-  //   itemStatus: ctx.itemStatus,
-  //   hasItem: !!ctx.item,
-  //   siteId: ctx.formValues.site,
-  //   hasToken: !!ctx.currentUserAccessToken,
-  //   environment: ctx.environment,
-  // })
 
   if (!assignedSchool) {
     // console.log(LOG, 'not a School Editor role -> allowed')
@@ -124,9 +115,9 @@ const GuardComponent = ({ ctx }: { ctx: RenderItemFormOutletCtx }) => {
     }
   }, [ctx.formValues.site, ctx.itemStatus, ctx.currentRole])
 
-  return (
-    <Canvas ctx={ctx}>
-      {blockedReason && (
+  if (blockedReason) {
+    return (
+      <Canvas ctx={ctx}>
         <div
           role="alert"
           style={{
@@ -145,9 +136,9 @@ const GuardComponent = ({ ctx }: { ctx: RenderItemFormOutletCtx }) => {
           </p>
           <p style={{ margin: '0.5em 0' }}>{blockedReason}</p>
         </div>
-      )}
-    </Canvas>
-  )
+      </Canvas>
+    )
+  }
 }
 
 connect({
@@ -164,25 +155,53 @@ connect({
   async onBeforeItemsPublish(items, ctx) {
     const assignedSchool = getSchoolFromRole(ctx.currentRole?.attributes?.name)
 
-    // RULE: Non-"School Editor" roles bypass publish restrictions completely
+    // Non-"School Editor" roles bypass publish restrictions completely
     if (!assignedSchool) return true
 
-    const client = getClient(ctx)
+    try {
+      const client = getClient(ctx)
+      const siteNameCache = new Map<string, string | undefined>()
 
-    for (const item of items) {
-      const siteId = item.attributes?.site as string | undefined
-      if (siteId) {
-        const siteRecord = await client.items.find(siteId)
-        const siteName = extractSiteName(siteRecord)
+      const getSiteName = async (siteId: string) => {
+        if (!siteNameCache.has(siteId)) {
+          const siteRecord = await client.items.find(siteId)
+          siteNameCache.set(siteId, extractSiteName(siteRecord))
+        }
+        return siteNameCache.get(siteId)
+      }
 
-        if (siteName !== assignedSchool) {
-          ctx.alert(
-            `Cannot publish: Record is assigned to "${siteName}", but your role is limited to "${assignedSchool}".`,
-          )
-          return false
+      const blocked: string[] = []
+
+      for (const item of items) {
+        const siteId = (item.attributes?.site ?? (item as any).site) as string | undefined
+
+        if (!siteId) {
+          blocked.push(`${item.id} (no site linked)`)
+          continue
+        }
+
+        const siteName = await getSiteName(siteId)
+        if (normalize(siteName) !== normalize(assignedSchool)) {
+          blocked.push(`${item.id} (belongs to "${siteName ?? 'unknown'}")`)
         }
       }
+
+      if (blocked.length > 0) {
+        await ctx.alert(
+          `Cannot publish: your role is limited to "${assignedSchool}", but ${
+            blocked.length === 1 ? 'this record is' : 'these records are'
+          } not assigned to it: ${blocked.join(', ')}.`,
+        )
+        return false
+      }
+
+      return true
+    } catch (e) {
+      console.error(LOG, 'publish check failed -> blocking', e)
+      await ctx.alert(
+        'Cannot publish: could not verify which school this record belongs to.',
+      )
+      return false
     }
-    return true
   },
 })

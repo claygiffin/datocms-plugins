@@ -656,7 +656,7 @@ export const SyncBlocksButton: React.FC<Props> = ({ ctx }) => {
           className={styles.button}
           buttonType={'muted'}
           fullWidth
-          disabled={isDisabled}
+          disabled={ctx.disabled || isDisabled}
           onClick={handleSync}
         >
           <span className={styles.icon}>{renderIcon()}</span>

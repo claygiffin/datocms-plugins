@@ -57,7 +57,7 @@ export const AlphabeticalList = ({ ctx }: Props) => {
 
   return (
     <Canvas ctx={ctx}>
-      <div className={styles.container}>
+      <div className={styles.container} data-disabled={ctx.disabled || undefined}>
         <form onSubmit={handleAddItem} className={styles.form}>
           <TextInput
             className={styles.input}

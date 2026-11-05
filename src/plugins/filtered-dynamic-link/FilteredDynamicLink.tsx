@@ -581,11 +581,11 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
   return (
     <Canvas ctx={ctx} noAutoResizer>
       {allowedItemTypeIds.length === 0 ?
-        <div className={styles.dangerMessage}>
+        <div className={styles.dangerMessage} data-disabled={ctx.disabled || undefined}>
           Please configure the Target Model in the field settings.
         </div>
       : initialLoading && currentIds.length > 0 ?
-        <div className={styles.skeletonList}>
+        <div className={styles.skeletonList} data-disabled={ctx.disabled || undefined}>
           {currentIds.map((id) => (
             <div key={id} className={styles.skeletonItem}>
               <Spinner size={24} />
@@ -594,12 +594,15 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
           ))}
         </div>
       : !isFilterReady && selectedCards.length === 0 ?
-        <div className={styles.mutedMessage}>
+        <div className={styles.mutedMessage} data-disabled={ctx.disabled || undefined}>
           Please complete all required filter fields (
           <strong>{missingFieldsNames.join(', ')}</strong>) first.
         </div>
       : !isMulti ?
-        <div className={styles.singleOptionContainer}>
+        <div
+          className={styles.singleOptionContainer}
+          data-disabled={ctx.disabled || undefined}
+        >
           <div className={isSingleInvalid ? styles.singleSelectError : ''}>
             <SelectInput
               isMulti={false}
@@ -643,7 +646,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             </div>
           )}
         </div>
-      : <div className={styles.container}>
+      : <div className={styles.container} data-disabled={ctx.disabled || undefined}>
           <SelectInput
             isMulti={false}
             value={null}
@@ -652,7 +655,7 @@ export const FilteredDynamicLink = ({ ctx }: Props) => {
             onMenuOpen={handleMenuOpen}
             onMenuClose={handleMenuClose}
             placeholder={placeholderText}
-            isDisabled={selectableOptions.length === 0}
+            isDisabled={ctx.disabled || selectableOptions.length === 0}
             formatOptionLabel={(data) =>
               data && (
                 <div className={styles.dropdownOption}>

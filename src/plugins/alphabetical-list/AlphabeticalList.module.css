@@ -3,6 +3,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  &[data-disabled='true'] {
+    cursor: not-allowed;
+    > * {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+  }
 }
 
 .form {

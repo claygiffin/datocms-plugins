@@ -11,6 +11,7 @@ const PLUGINS = [
   'structured-text-default-value',
   'alphabetical-list',
   'sortable-list',
+  'school-permission-guard',
 ]
 
 /**

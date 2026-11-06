@@ -86,15 +86,22 @@ const GuardComponent = ({ ctx }: { ctx: RenderItemFormOutletCtx }) => {
     let cancelled = false
 
     const enforcePermissions = async () => {
+      const modelFields = Object.values(ctx.fields).filter(
+        (f) => f?.relationships?.item_type?.data?.id === ctx.itemType.id,
+      )
+
+      // Models without a `site` field are out of scope: do nothing at all
+      const hasSiteField = modelFields.some((f) => f?.attributes?.api_key === 'site')
+      if (!hasSiteField) {
+        setBlockedReason(null)
+        return
+      }
+
       const { allowed, reason } = await checkSchoolPermission(ctx)
       if (cancelled) return
 
       setBlockedReason(
         allowed ? null : (reason ?? 'You do not have permission to edit this record.'),
-      )
-
-      const modelFields = Object.values(ctx.fields).filter(
-        (f) => f?.relationships?.item_type?.data?.id === ctx.itemType.id,
       )
 
       for (const field of modelFields) {
@@ -114,7 +121,6 @@ const GuardComponent = ({ ctx }: { ctx: RenderItemFormOutletCtx }) => {
       cancelled = true
     }
   }, [ctx.formValues.site, ctx.itemStatus, ctx.currentRole])
-
   if (blockedReason) {
     return (
       <Canvas ctx={ctx}>
@@ -139,6 +145,7 @@ const GuardComponent = ({ ctx }: { ctx: RenderItemFormOutletCtx }) => {
       </Canvas>
     )
   }
+  return null
 }
 
 const guardBulkAction = async (items: any[], ctx: any, verb: string) => {
@@ -147,24 +154,41 @@ const guardBulkAction = async (items: any[], ctx: any, verb: string) => {
 
   try {
     const client = getClient(ctx)
-    const cache = new Map<string, string | undefined>()
+
+    const siteNameCache = new Map<string, string | undefined>()
     const getSiteName = async (siteId: string) => {
-      if (!cache.has(siteId)) {
-        cache.set(siteId, extractSiteName(await client.items.find(siteId)))
+      if (!siteNameCache.has(siteId)) {
+        siteNameCache.set(siteId, extractSiteName(await client.items.find(siteId)))
       }
-      return cache.get(siteId)
+      return siteNameCache.get(siteId)
+    }
+
+    const hasSiteFieldCache = new Map<string, boolean>()
+    const modelHasSiteField = async (itemTypeId: string) => {
+      if (!hasSiteFieldCache.has(itemTypeId)) {
+        const fields = await ctx.loadItemTypeFields(itemTypeId)
+        hasSiteFieldCache.set(
+          itemTypeId,
+          fields.some((f: any) => f.attributes.api_key === 'site'),
+        )
+      }
+      return hasSiteFieldCache.get(itemTypeId)!
     }
 
     const blocked: string[] = []
+
     for (const item of items) {
-      // Skip models that don't have a `site` field at all
-      if (item.attributes && !('site' in item.attributes)) continue
+      const itemTypeId = item.relationships?.item_type?.data?.id as string | undefined
+
+      // No site field on this model: out of scope, allow
+      if (itemTypeId && !(await modelHasSiteField(itemTypeId))) continue
 
       const siteId = item.attributes?.site as string | undefined
       if (!siteId) {
         blocked.push(`${item.id} (no site linked)`)
         continue
       }
+
       const siteName = await getSiteName(siteId)
       if (normalize(siteName) !== normalize(assignedSchool)) {
         blocked.push(`${item.id} (belongs to "${siteName ?? 'unknown'}")`)

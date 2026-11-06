@@ -141,6 +141,54 @@ const GuardComponent = ({ ctx }: { ctx: RenderItemFormOutletCtx }) => {
   }
 }
 
+const guardBulkAction = async (items: any[], ctx: any, verb: string) => {
+  const assignedSchool = getSchoolFromRole(ctx.currentRole?.attributes?.name)
+  if (!assignedSchool) return true
+
+  try {
+    const client = getClient(ctx)
+    const cache = new Map<string, string | undefined>()
+    const getSiteName = async (siteId: string) => {
+      if (!cache.has(siteId)) {
+        cache.set(siteId, extractSiteName(await client.items.find(siteId)))
+      }
+      return cache.get(siteId)
+    }
+
+    const blocked: string[] = []
+    for (const item of items) {
+      // Skip models that don't have a `site` field at all
+      if (item.attributes && !('site' in item.attributes)) continue
+
+      const siteId = item.attributes?.site as string | undefined
+      if (!siteId) {
+        blocked.push(`${item.id} (no site linked)`)
+        continue
+      }
+      const siteName = await getSiteName(siteId)
+      if (normalize(siteName) !== normalize(assignedSchool)) {
+        blocked.push(`${item.id} (belongs to "${siteName ?? 'unknown'}")`)
+      }
+    }
+
+    if (blocked.length) {
+      await ctx.alert(
+        `Cannot ${verb}: your role is limited to "${assignedSchool}", but ${
+          blocked.length === 1 ? 'this record is' : 'these records are'
+        } not assigned to it: ${blocked.join(', ')}.`,
+      )
+      return false
+    }
+    return true
+  } catch (e) {
+    console.error(LOG, `${verb} check failed -> blocking`, e)
+    await ctx.alert(
+      `Cannot ${verb}: could not verify which school this record belongs to.`,
+    )
+    return false
+  }
+}
+
 connect({
   itemFormOutlets() {
     return [{ id: 'schoolPermissionGuard', initialHeight: 0 }]
@@ -151,57 +199,7 @@ connect({
       return render(<GuardComponent ctx={ctx} />)
     }
   },
-
-  async onBeforeItemsPublish(items, ctx) {
-    const assignedSchool = getSchoolFromRole(ctx.currentRole?.attributes?.name)
-
-    // Non-"School Editor" roles bypass publish restrictions completely
-    if (!assignedSchool) return true
-
-    try {
-      const client = getClient(ctx)
-      const siteNameCache = new Map<string, string | undefined>()
-
-      const getSiteName = async (siteId: string) => {
-        if (!siteNameCache.has(siteId)) {
-          const siteRecord = await client.items.find(siteId)
-          siteNameCache.set(siteId, extractSiteName(siteRecord))
-        }
-        return siteNameCache.get(siteId)
-      }
-
-      const blocked: string[] = []
-
-      for (const item of items) {
-        const siteId = (item.attributes?.site ?? (item as any).site) as string | undefined
-
-        if (!siteId) {
-          blocked.push(`${item.id} (no site linked)`)
-          continue
-        }
-
-        const siteName = await getSiteName(siteId)
-        if (normalize(siteName) !== normalize(assignedSchool)) {
-          blocked.push(`${item.id} (belongs to "${siteName ?? 'unknown'}")`)
-        }
-      }
-
-      if (blocked.length > 0) {
-        await ctx.alert(
-          `Cannot publish: your role is limited to "${assignedSchool}", but ${
-            blocked.length === 1 ? 'this record is' : 'these records are'
-          } not assigned to it: ${blocked.join(', ')}.`,
-        )
-        return false
-      }
-
-      return true
-    } catch (e) {
-      console.error(LOG, 'publish check failed -> blocking', e)
-      await ctx.alert(
-        'Cannot publish: could not verify which school this record belongs to.',
-      )
-      return false
-    }
-  },
+  onBeforeItemsPublish: (items, ctx) => guardBulkAction(items, ctx, 'publish'),
+  onBeforeItemsUnpublish: (items, ctx) => guardBulkAction(items, ctx, 'unpublish'),
+  onBeforeItemsDestroy: (items, ctx) => guardBulkAction(items, ctx, 'delete'),
 })
